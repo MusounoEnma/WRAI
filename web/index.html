@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WRAI v8 - Wavelet Resonance AI Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-bg: #111827;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --border-color: #1f2937;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-area { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; color: white;
+        }
+        .header-title h1 { font-size: 1.1rem; font-weight: 600; }
+        .header-title p { font-size: 0.75rem; color: var(--text-sub); }
+        .metrics-badge {
+            display: flex; gap: 1rem; font-family: 'Fira Code', monospace; font-size: 0.75rem;
+        }
+        .badge-item {
+            background: rgba(255, 255, 255, 0.05); padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color);
+        }
+        .badge-val { color: var(--accent-cyan); font-weight: 600; }
+        
+        main {
+            flex: 1; overflow-y: auto; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem;
+        }
+        .chat-msg { display: flex; gap: 1rem; max-width: 85%; }
+        .chat-msg.user { margin-left: auto; flex-direction: row-reverse; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%; background: var(--border-color);
+            display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0;
+        }
+        .chat-msg.bot .avatar { background: linear-gradient(135deg, #10b981, #059669); }
+        .chat-msg.user .avatar { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .msg-body {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            padding: 1rem 1.25rem; border-radius: 12px; font-size: 0.95rem; line-height: 1.5;
+        }
+        .chat-msg.user .msg-body { background-color: #1e1b4b; border-color: #312e81; }
+        .cot-trace {
+            margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-color);
+            font-family: 'Fira Code', monospace; font-size: 0.75rem; color: #6b7280;
+        }
+        .cot-step { color: var(--accent-cyan); margin-bottom: 0.25rem; }
+
+        footer {
+            padding: 1.25rem 2rem; background-color: var(--card-bg); border-top: 1px solid var(--border-color);
+        }
+        .input-box {
+            display: flex; gap: 0.75rem; max-width: 1000px; margin: 0 auto;
+        }
+        input[type="text"] {
+            flex: 1; background-color: var(--bg-dark); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 0.75rem 1rem; color: white; font-family: inherit; font-size: 0.95rem;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--accent-blue); }
+        button {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: white; border: none; border-radius: 8px; padding: 0 1.5rem; font-weight: 600; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-area">
+            <div class="logo-icon">W</div>
+            <div class="header-title">
+                <h1>Wavelet-Resonance AI (WRAI v8 Next-Gen)</h1>
+                <p>Bare-Metal Zero-GEMM High-Dimensional Spectral Engine (Microsoft BitNet b1.58 GGUF Distilled)</p>
+            </div>
+        </div>
+        <div class="metrics-badge">
+            <div class="badge-item">RAM: <span class="badge-val">~45 MB (Statis)</span></div>
+            <div class="badge-item">GEMM Ops: <span class="badge-val">0 (Zero-GEMM)</span></div>
+            <div class="badge-item">Spectrum: <span class="badge-val">4096-Bin Q31 FFT</span></div>
+        </div>
+    </header>
+
+    <main id="chatWindow">
+        <div class="chat-msg bot">
+            <div class="avatar">W</div>
+            <div class="msg-body">
+                Salam! Saya adalah <strong>WRAI v8 Next-Gen</strong>, arsitektur AI spektral berbasis sinyal gelombang 4.096 Bins FFT Q31 terdistilasi dari model biner <strong>Microsoft BitNet b1.58 (1.13 GB GGUF)</strong>.<br><br>
+                Saya beroperasi murni 100% Zero-GEMM tanpa matriks FP32 panas, menggunakan Mamba-2 Selective State (Zero KV-Cache Leak) & Fourier-KAN Edge Layers.
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="input-box">
+            <input type="text" id="userInput" placeholder="Tanyakan apa saja kepada WRAI v8 Next-Gen..." onkeydown="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()">Kirim</button>
+        </div>
+    </footer>
+
+    <script>
+        async function sendMessage() {
+            const input = document.getElementById("userInput");
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = "";
+            appendMessage("user", text);
+
+            try {
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: text })
+                });
+                const data = await res.json();
+                appendMessage("bot", data.response_text, data.cot_steps);
+            } catch(e) {
+                appendMessage("bot", "Error menghubungkan ke server v8.");
+            }
+        }
+
+        function appendMessage(sender, text, cot) {
+            const win = document.getElementById("chatWindow");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `chat-msg ${sender}`;
+
+            let cotHtml = "";
+            if (cot && cot.length) {
+                cotHtml = `<div class="cot-trace">` + 
+                    cot.map(c => `<div class="cot-step">[STEP #${c.step}] ${c.text}</div>`).join("") +
+                    `</div>`;
+            }
+
+            msgDiv.innerHTML = `
+                <div class="avatar">${sender === 'user' ? 'U' : 'W'}</div>
+                <div class="msg-body">${text}${cotHtml}</div>
+            `;
+            win.appendChild(msgDiv);
+            win.scrollTop = win.scrollHeight;
+        }
+    </script>
+</body>
+</html>

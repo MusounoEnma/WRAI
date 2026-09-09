@@ -1,0 +1,45 @@
+# =============================================================================
+# WRAI .gitignore
+# =============================================================================
+
+# Large Model Weights & Checkpoints (Host on Hugging Face / GitHub Releases)
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+1.7b models/
+models/
+backups/
+
+# Compiled Executables & Objects
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+
+# Compiler Toolchains & Archives
+tools/w64devkit/
+tools/w64devkit.zip
+*.zip
+*.tar.gz
+
+# Python Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Logs & Temporary Scratch
+*.log
+scratch/
+test_*.txt
+test_*.exe
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

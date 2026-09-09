@@ -100,10 +100,12 @@ typedef struct {
     size_t file_size;
 } wrai_x_model_t;
 
-/* Dual Recurrent State (~14.5 MB RAM total for 28 layers) */
+/* Dual Recurrent State (~14.7 MB RAM total for 28 layers) */
 typedef struct {
     float* state_m;     /* [28, 16, 128, 128] Memory Buffer */
+    float* state_zm;    /* [28, 16, 128] Memory Normalizer Vector (Normalized Linear Retention) */
     float* state_r;     /* [28, 16, 128, 128] Reasoning Buffer */
+    float* state_zr;    /* [28, 16, 128] Reasoning Normalizer Vector */
     float* state_hdc;   /* [28, 1024] HDC Scratchpad */
     size_t current_pos;
 } wrai_x_state_t;

@@ -300,18 +300,24 @@ void wrai_x_free_model(wrai_x_model_t* model) {
 bool wrai_x_state_init(wrai_x_state_t* state) {
     if (!state) return false;
     size_t floats_ret = (size_t)WRAI_X_NUM_LAYERS * WRAI_X_NUM_HEADS * WRAI_X_HEAD_DIM * WRAI_X_HEAD_DIM;
+    size_t floats_z   = (size_t)WRAI_X_NUM_LAYERS * WRAI_X_NUM_HEADS * WRAI_X_HEAD_DIM;
     state->state_m = (float*)calloc(floats_ret, sizeof(float));
+    state->state_zm = (float*)calloc(floats_z, sizeof(float));
     state->state_r = (float*)calloc(floats_ret, sizeof(float));
+    state->state_zr = (float*)calloc(floats_z, sizeof(float));
     state->state_hdc = (float*)calloc((size_t)WRAI_X_NUM_LAYERS * WRAI_X_HIDDEN_DIM, sizeof(float));
     state->current_pos = 0;
-    return (state->state_m && state->state_r && state->state_hdc);
+    return (state->state_m && state->state_zm && state->state_r && state->state_zr && state->state_hdc);
 }
 
 void wrai_x_state_reset(wrai_x_state_t* state) {
     if (!state) return;
     size_t floats_ret = (size_t)WRAI_X_NUM_LAYERS * WRAI_X_NUM_HEADS * WRAI_X_HEAD_DIM * WRAI_X_HEAD_DIM;
+    size_t floats_z   = (size_t)WRAI_X_NUM_LAYERS * WRAI_X_NUM_HEADS * WRAI_X_HEAD_DIM;
     if (state->state_m) memset(state->state_m, 0, floats_ret * sizeof(float));
+    if (state->state_zm) memset(state->state_zm, 0, floats_z * sizeof(float));
     if (state->state_r) memset(state->state_r, 0, floats_ret * sizeof(float));
+    if (state->state_zr) memset(state->state_zr, 0, floats_z * sizeof(float));
     if (state->state_hdc) memset(state->state_hdc, 0, WRAI_X_NUM_LAYERS * WRAI_X_HIDDEN_DIM * sizeof(float));
     state->current_pos = 0;
 }
@@ -319,7 +325,9 @@ void wrai_x_state_reset(wrai_x_state_t* state) {
 void wrai_x_state_free(wrai_x_state_t* state) {
     if (!state) return;
     if (state->state_m) free(state->state_m);
+    if (state->state_zm) free(state->state_zm);
     if (state->state_r) free(state->state_r);
+    if (state->state_zr) free(state->state_zr);
     if (state->state_hdc) free(state->state_hdc);
     memset(state, 0, sizeof(wrai_x_state_t));
 }
@@ -359,28 +367,48 @@ void wrai_x_forward_step(
         gemv_int8(lw->w_v_data, lw->w_v_scales, x_norm, v, 2048, 1024);
 
         float* layer_sm = state->state_m + (size_t)l * (16 * 128 * 128);
+        float* layer_zm = state->state_zm + (size_t)l * (16 * 128);
         float ret_out[2048];
+        const float head_scale = 0.08838834764831845f; /* 1.0f / sqrtf(128.0f) */
 
         for (int h = 0; h < 16; h++) {
             float gamma = fast_sigmoid(lw->decay_m[h]);
             float* s_h = layer_sm + (size_t)h * (128 * 128);
+            float* z_h = layer_zm + (size_t)h * 128;
             const float* q_h = q + h * 128;
             const float* k_h = k + h * 128;
             const float* v_h = v + h * 128;
             float* o_h = ret_out + h * 128;
 
+            float phi_q[128], phi_k[128];
             for (int r = 0; r < 128; r++) {
-                float kr_val = k_h[r];
+                float qs = q_h[r] * head_scale;
+                phi_q[r] = (qs > 0.0f) ? (qs + 1.0f) : expf(qs);
+                float ks = k_h[r] * head_scale;
+                phi_k[r] = (ks > 0.0f) ? (ks + 1.0f) : expf(ks);
+            }
+
+            for (int r = 0; r < 128; r++) {
+                float kr_val = phi_k[r];
+                z_h[r] = z_h[r] * gamma + kr_val;
                 for (int c = 0; c < 128; c++) {
                     s_h[r * 128 + c] = s_h[r * 128 + c] * gamma + kr_val * v_h[c];
                 }
             }
+
+            float denom = 0.0f;
+            for (int r = 0; r < 128; r++) {
+                denom += phi_q[r] * z_h[r];
+            }
+            if (denom < 1e-5f) denom = 1e-5f;
+            float inv_denom = 1.0f / denom;
+
             for (int c = 0; c < 128; c++) {
                 float sum = 0.0f;
                 for (int r = 0; r < 128; r++) {
-                    sum += q_h[r] * s_h[r * 128 + c];
+                    sum += phi_q[r] * s_h[r * 128 + c];
                 }
-                o_h[c] = sum;
+                o_h[c] = sum * inv_denom;
             }
         }
         gemv_int8(lw->w_out_data, lw->w_out_scales, ret_out, o_m, 1024, 2048);
@@ -394,27 +422,46 @@ void wrai_x_forward_step(
         gemv_int8(lw->w_vr_data, lw->w_vr_scales, o_m_filtered, vr, 2048, 1024);
 
         float* layer_sr = state->state_r + (size_t)l * (16 * 128 * 128);
+        float* layer_zr = state->state_zr + (size_t)l * (16 * 128);
         float ret_r_out[2048];
         for (int h = 0; h < 16; h++) {
             float gamma_r = fast_sigmoid(lw->decay_r[h]);
             float* sr_h = layer_sr + (size_t)h * (128 * 128);
+            float* zr_h = layer_zr + (size_t)h * 128;
             const float* qr_h = qr + h * 128;
             const float* kr_h = kr + h * 128;
             const float* vr_h = vr + h * 128;
             float* or_h = ret_r_out + h * 128;
 
+            float phi_qr[128], phi_kr[128];
             for (int r = 0; r < 128; r++) {
-                float kr_val = kr_h[r];
+                float qrs = qr_h[r] * head_scale;
+                phi_qr[r] = (qrs > 0.0f) ? (qrs + 1.0f) : expf(qrs);
+                float krs = kr_h[r] * head_scale;
+                phi_kr[r] = (krs > 0.0f) ? (krs + 1.0f) : expf(krs);
+            }
+
+            for (int r = 0; r < 128; r++) {
+                float kr_val = phi_kr[r];
+                zr_h[r] = zr_h[r] * gamma_r + kr_val;
                 for (int c = 0; c < 128; c++) {
                     sr_h[r * 128 + c] = sr_h[r * 128 + c] * gamma_r + kr_val * vr_h[c];
                 }
             }
+
+            float denom_r = 0.0f;
+            for (int r = 0; r < 128; r++) {
+                denom_r += phi_qr[r] * zr_h[r];
+            }
+            if (denom_r < 1e-5f) denom_r = 1e-5f;
+            float inv_denom_r = 1.0f / denom_r;
+
             for (int c = 0; c < 128; c++) {
                 float sum = 0.0f;
                 for (int r = 0; r < 128; r++) {
-                    sum += qr_h[r] * sr_h[r * 128 + c];
+                    sum += phi_qr[r] * sr_h[r * 128 + c];
                 }
-                or_h[c] = sum;
+                or_h[c] = sum * inv_denom_r;
             }
         }
         gemv_int8(lw->w_out_r_data, lw->w_out_r_scales, ret_r_out, o_r, 1024, 2048);

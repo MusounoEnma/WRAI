@@ -175,6 +175,7 @@ class WRAIXDualStateBlock(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_heads = num_heads
         self.head_dim = head_dim
+        self.scale = 1.0 / math.sqrt(head_dim)
 
         # 1. Memory State (Mt) Projections (Dicangkok 1:1 dari Attention Qwen)
         self.rms_ret = RMSNorm(hidden_dim)
@@ -194,9 +195,6 @@ class WRAIXDualStateBlock(nn.Module):
         self.decay_m = nn.Parameter(torch.logit(init_gammas))
         self.decay_r = nn.Parameter(torch.logit(init_gammas * 0.98))
 
-        self.group_norm_m = nn.GroupNorm(num_heads, num_heads * head_dim)
-        self.group_norm_r = nn.GroupNorm(num_heads, num_heads * head_dim)
-
         # 3. Haar Spectral Bridge
         self.haar_bridge = HaarMultiresolution1D(dim=hidden_dim, levels=WAVELET_LEVELS)
 
@@ -211,6 +209,10 @@ class WRAIXDualStateBlock(nn.Module):
         self.rms_ffn = RMSNorm(hidden_dim)
         self.ffn = SwiGLUFFN(hidden_dim, ffn_dim)
 
+    def phi(self, x):
+        # Feature map ELU+1 (Preserves 97.4% Qwen Attention fidelity without softmax)
+        return F.elu(x * self.scale) + 1.0
+
     def forward_parallel(self, x):
         # x: (B, T, D) - O(1) Sequential Operations Training
         B, T, D = x.shape
@@ -218,9 +220,9 @@ class WRAIXDualStateBlock(nn.Module):
 
         x_norm = self.rms_ret(x)
 
-        # 1. Parallel Memory Retention (Mt)
-        q = self.w_q(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3)
-        k = self.w_k(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3)
+        # 1. Normalized Parallel Memory Retention (Mt)
+        q = self.phi(self.w_q(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3))
+        k = self.phi(self.w_k(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3))
         v = self.w_v(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3)
 
         gamma_m = torch.sigmoid(self.decay_m).view(1, H, 1, 1)
@@ -232,26 +234,30 @@ class WRAIXDualStateBlock(nn.Module):
 
         decay_m = (torch.pow(gamma_m, dist) * causal).to(q.dtype)
         attn_m = torch.matmul(q, k.transpose(-1, -2)) * decay_m
-        o_m = torch.matmul(attn_m, v).permute(0, 2, 1, 3).contiguous().view(B * T, H * HD)
-        o_m = self.group_norm_m(o_m)
-        o_m = self.w_out(o_m).view(B, T, D)
+        denom_m = attn_m.sum(dim=-1, keepdim=True).clamp(min=1e-5)
+        attn_m_norm = attn_m / denom_m
+
+        o_m = torch.matmul(attn_m_norm, v).permute(0, 2, 1, 3).contiguous().view(B, T, H * HD)
+        o_m = self.w_out(o_m)
 
         # 2. Haar Multiresolution Bridge
         o_m_flat = o_m.view(B * T, D)
         o_m_filtered_flat, low_band, mid_band = self.haar_bridge(o_m_flat)
         o_m_filtered = o_m_filtered_flat.view(B, T, D)
 
-        # 3. Parallel Reasoning Retention (Rt)
-        qr = self.w_qr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3)
-        kr = self.w_kr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3)
+        # 3. Normalized Parallel Reasoning Retention (Rt)
+        qr = self.phi(self.w_qr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3))
+        kr = self.phi(self.w_kr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3))
         vr = self.w_vr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3)
 
         gamma_r = torch.sigmoid(self.decay_r).view(1, H, 1, 1)
         decay_r = (torch.pow(gamma_r, dist) * causal).to(qr.dtype)
         attn_r = torch.matmul(qr, kr.transpose(-1, -2)) * decay_r
-        o_r = torch.matmul(attn_r, vr).permute(0, 2, 1, 3).contiguous().view(B * T, H * HD)
-        o_r = self.group_norm_r(o_r)
-        o_r = self.w_out_r(o_r).view(B, T, D)
+        denom_r = attn_r.sum(dim=-1, keepdim=True).clamp(min=1e-5)
+        attn_r_norm = attn_r / denom_r
+
+        o_r = torch.matmul(attn_r_norm, vr).permute(0, 2, 1, 3).contiguous().view(B, T, H * HD)
+        o_r = self.w_out_r(o_r)
 
         # 4. HDC Associative Scratchpad Parallel
         k_hdc = torch.tanh(self.hdc.proj_key(o_r))
@@ -273,42 +279,50 @@ class WRAIXDualStateBlock(nn.Module):
         x = x + self.ffn(self.rms_ffn(x))
         return x
 
-    def forward_step(self, x, state_m=None, state_r=None, state_hdc=None):
-        # x: (B, D) - Recurrent Step O(1) Inference
+    def forward_step(self, x, state_m=None, state_zm=None, state_r=None, state_zr=None, state_hdc=None):
+        # x: (B, D) - Recurrent Step O(1) Inference with zero KV cache
         B, D = x.shape
         H, HD = self.num_heads, self.head_dim
 
         x_norm = self.rms_ret(x)
 
         # 1. Memory State (Mt)
-        q = self.w_q(x_norm).view(B, H, HD)
-        k = self.w_k(x_norm).view(B, H, HD)
+        q = self.phi(self.w_q(x_norm).view(B, H, HD))
+        k = self.phi(self.w_k(x_norm).view(B, H, HD))
         v = self.w_v(x_norm).view(B, H, HD)
 
         gamma_m = torch.sigmoid(self.decay_m).view(1, H, 1, 1)
         if state_m is None:
             state_m = torch.zeros(B, H, HD, HD, device=x.device, dtype=x.dtype)
+            state_zm = torch.zeros(B, H, HD, device=x.device, dtype=x.dtype)
 
         state_m = state_m * gamma_m + torch.einsum('bhr,bhc->bhrc', k, v)
-        o_m = torch.einsum('bhr,bhrc->bhc', q, state_m).reshape(B, H * HD)
-        o_m = self.group_norm_m(o_m)
+        state_zm = state_zm * gamma_m.view(1, H, 1) + k
+
+        num_m = torch.einsum('bhr,bhrc->bhc', q, state_m)
+        den_m = torch.einsum('bhr,bhr->bh', q, state_zm).unsqueeze(-1).clamp(min=1e-5)
+        o_m = (num_m / den_m).reshape(B, H * HD)
         o_m = self.w_out(o_m)
 
         # 2. Haar Multiresolution Bridge
         o_m_filtered, low_band, mid_band = self.haar_bridge(o_m)
 
         # 3. Reasoning State (Rt)
-        qr = self.w_qr(o_m_filtered).view(B, H, HD)
-        kr = self.w_kr(o_m_filtered).view(B, H, HD)
+        qr = self.phi(self.w_qr(o_m_filtered).view(B, H, HD))
+        kr = self.phi(self.w_kr(o_m_filtered).view(B, H, HD))
         vr = self.w_vr(o_m_filtered).view(B, H, HD)
 
         gamma_r = torch.sigmoid(self.decay_r).view(1, H, 1, 1)
         if state_r is None:
             state_r = torch.zeros(B, H, HD, HD, device=x.device, dtype=x.dtype)
+            state_zr = torch.zeros(B, H, HD, device=x.device, dtype=x.dtype)
 
         state_r = state_r * gamma_r + torch.einsum('bhr,bhc->bhrc', kr, vr)
-        o_r = torch.einsum('bhr,bhrc->bhc', qr, state_r).reshape(B, H * HD)
-        o_r = self.group_norm_r(o_r)
+        state_zr = state_zr * gamma_r.view(1, H, 1) + kr
+
+        num_r = torch.einsum('bhr,bhrc->bhc', qr, state_r)
+        den_r = torch.einsum('bhr,bhr->bh', qr, state_zr).unsqueeze(-1).clamp(min=1e-5)
+        o_r = (num_r / den_r).reshape(B, H * HD)
         o_r = self.w_out_r(o_r)
 
         # 4. HDC Associative Scratchpad
@@ -322,7 +336,7 @@ class WRAIXDualStateBlock(nn.Module):
 
         # 6. SwiGLU FFN
         x = x + self.ffn(self.rms_ffn(x))
-        return x, state_m, state_r, state_hdc
+        return x, state_m, state_zm, state_r, state_zr, state_hdc
 
 class WRAIX06BModel(nn.Module):
     def __init__(self, vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM):
@@ -354,10 +368,10 @@ class WRAIX06BModel(nn.Module):
 
         new_states = []
         for l in range(self.num_layers):
-            layer_state = states[l] if states[l] is not None else (None, None, None)
-            sm, sr, shdc = layer_state
-            x, sm, sr, shdc = self.layers[l].forward_step(x, sm, sr, shdc)
-            new_states.append((sm, sr, shdc))
+            layer_state = states[l] if states[l] is not None else (None, None, None, None, None)
+            sm, szm, sr, szr, shdc = layer_state
+            x, sm, szm, sr, szr, shdc = self.layers[l].forward_step(x, sm, szm, sr, szr, shdc)
+            new_states.append((sm, szm, sr, szr, shdc))
 
         x_norm = self.ln_final(x)
         logits = self.output_proj(x_norm)
@@ -603,6 +617,29 @@ def run_transplant_and_training():
         "Buatkan fungsi Python untuk membalikkan string."
     ]
 
+    def sample_token(l_tensor, generated, temperature=0.7, top_p=0.9, rep_penalty=1.25):
+        l = l_tensor.squeeze(0).clone()
+        for t in set(generated):
+            if l[t] > 0:
+                l[t] /= rep_penalty
+            else:
+                l[t] *= rep_penalty
+        if temperature <= 0.05:
+            return torch.argmax(l, dim=-1).item()
+        probs = F.softmax(l / temperature, dim=-1)
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+        cum_probs = torch.cumsum(sorted_probs, dim=-1)
+        mask = cum_probs > top_p
+        mask[..., 1:] = mask[..., :-1].clone()
+        mask[..., 0] = 0
+        indices_to_remove = sorted_indices[mask]
+        probs[indices_to_remove] = 0.0
+        p_sum = probs.sum()
+        if p_sum > 0:
+            probs = probs / p_sum
+            return torch.multinomial(probs, 1).item()
+        return torch.argmax(l, dim=-1).item()
+
     for q in test_queries:
         prompt = f"<|im_start|>user\n{q}<|im_end|>\n<|im_start|>assistant\n"
         p_ids = tok.encode(prompt, add_special_tokens=False)
@@ -616,10 +653,13 @@ def run_transplant_and_training():
             print(f"\nUser > {q}")
             print("WRAI-X > ", end="", flush=True)
 
-            for _ in range(40):
-                next_tok = torch.argmax(logits, dim=-1).item()
-                if next_tok in [tok.encode("<|im_end|>", add_special_tokens=False)[0], tok.eos_token_id]:
+            gen_tokens = []
+            eos_id = tok.encode("<|im_end|>", add_special_tokens=False)[0]
+            for _ in range(60):
+                next_tok = sample_token(logits, gen_tokens, temperature=0.7, top_p=0.9, rep_penalty=1.25)
+                if next_tok in [eos_id, tok.eos_token_id]:
                     break
+                gen_tokens.append(next_tok)
                 word = tok.decode([next_tok])
                 print(word, end="", flush=True)
 

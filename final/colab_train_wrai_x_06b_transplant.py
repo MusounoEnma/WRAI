@@ -63,7 +63,7 @@ VOCAB_SIZE = 151936        # Qwen 3 Vocab Size
 MAX_SEQ_LEN = 64           # 64 Token cukup untuk kurasi pola (menghemat VRAM 4x)
 BATCH_SIZE = 2             # Micro-batching untuk keamanan total VRAM GPU T4
 GRAD_ACCUM_STEPS = 5       # 5 micro-batches per step (10 sampel total)
-LEARNING_RATE = 1e-3       # Fast convergence for adapters
+LEARNING_RATE = 5e-4       # Stable adaptation rate for retention routers
 WEIGHT_DECAY = 0.01
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -461,22 +461,24 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     trainable_params = 0
     for l in range(NUM_LAYERS):
         layer = wrai_model.layers[l]
-        # Kunci FFN & Norms (Pengetahuan faktual tidak bisa ditimpa!)
+        # Kunci FFN & Norms (Pengetahuan faktual 264M params 100% terkunci!)
         layer.ffn.w_gate.weight.requires_grad = False
         layer.ffn.w_up.weight.requires_grad = False
         layer.ffn.w_down.weight.requires_grad = False
         layer.rms_ret.weight.requires_grad = False
         layer.rms_ffn.weight.requires_grad = False
-        layer.w_q.weight.requires_grad = False
-        layer.w_k.weight.requires_grad = False
-        layer.w_v.weight.requires_grad = False
-        layer.w_out.weight.requires_grad = False
-        layer.w_qr.weight.requires_grad = False
-        layer.w_kr.weight.requires_grad = False
-        layer.w_vr.weight.requires_grad = False
-        layer.w_out_r.weight.requires_grad = False
 
-        # YANG DILATIH HANYA ADAPTER NALAR WRAI-X (Zero-Init Alpha + Gating + HDC + Haar):
+        # YANG DILATIH HANYA ROUTER RETENTION & ADAPTER WRAI-X:
+        # Matriks Retention (w_q, w_k, w_v, w_out) beradaptasi dari Softmax ke Retention WRAI-X!
+        layer.w_q.weight.requires_grad = True
+        layer.w_k.weight.requires_grad = True
+        layer.w_v.weight.requires_grad = True
+        layer.w_out.weight.requires_grad = True
+        layer.w_qr.weight.requires_grad = True
+        layer.w_kr.weight.requires_grad = True
+        layer.w_vr.weight.requires_grad = True
+        layer.w_out_r.weight.requires_grad = True
+
         layer.alpha.requires_grad = True
         layer.decay_m.requires_grad = True
         layer.decay_r.requires_grad = True
@@ -569,7 +571,7 @@ def run_transplant_and_training():
     print("=" * 70)
 
     model.train()
-    steps = 30
+    steps = 60
     t_start = time.time()
     micro_batch = 1  # Micro-batching 1 sample: Peak activation VRAM < 200 MB!
 

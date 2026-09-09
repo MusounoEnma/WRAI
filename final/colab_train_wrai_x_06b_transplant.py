@@ -601,10 +601,36 @@ def run_transplant_and_training():
                 logits, states = model.forward_step(t_tensor, states)
             print()
 
-    # Simpan Bobot
-    save_path = "wrai_x_06b_transplanted.pt"
+    # Simpan Bobot ke Drive (jika ada) dan lokal
+    drive_dir = "/content/drive/MyDrive/WRAI_X_06B"
+    if os.path.exists("/content"):
+        try:
+            from google.colab import drive
+            if not os.path.exists("/content/drive/MyDrive"):
+                drive.mount('/content/drive')
+            os.makedirs(drive_dir, exist_ok=True)
+            save_path = os.path.join(drive_dir, "wrai_x_06b_transplanted.pt")
+        except Exception:
+            save_path = "wrai_x_06b_transplanted.pt"
+    else:
+        save_path = "wrai_x_06b_transplanted.pt"
+
     torch.save(model.state_dict(), save_path)
     print(f"\n[OK] Model WRAI-X Berhasil Disimpan ke: {save_path} ({os.path.getsize(save_path)/1e6:.1f} MB)")
+
+    # Auto-run Kuantisasi ke INT8 Native C Binary
+    print("\n" + "=" * 70)
+    print("   ⚡ OTOMATISASI KUANTISASI KE FORMAT INT8 NATIVE C BINARY          ")
+    print("=" * 70)
+    try:
+        from quantize_wrai_x_06b_colab import export_tokenizer_vocab_bin, pack_wrai_x_checkpoint
+        vocab_out = os.path.join(os.path.dirname(save_path), "wrai_x_vocab.bin") if os.path.dirname(save_path) else "wrai_x_vocab.bin"
+        bin_out = os.path.join(os.path.dirname(save_path), "wrai_x_06b_int8.bin") if os.path.dirname(save_path) else "wrai_x_06b_int8.bin"
+        export_tokenizer_vocab_bin(vocab_out)
+        pack_wrai_x_checkpoint(save_path, bin_out)
+        print(f"\n[SELESAI 100%] File siap pakai di laptop: {bin_out} & {vocab_out}!")
+    except Exception as e:
+        print(f"[INFO] Kuantisasi dapat dijalankan terpisah via python final/quantize_wrai_x_06b_colab.py: {e}")
 
 if __name__ == "__main__":
     run_transplant_and_training()

@@ -29,18 +29,23 @@ import math
 import time
 import json
 import gc
+import struct
+import numpy as np
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-try:
-    from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
-    from datasets import load_dataset
-except ImportError:
-    os.system("pip install -q transformers datasets accelerate")
-    from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
-    from datasets import load_dataset
+import subprocess
+for pkg in ["transformers", "datasets", "accelerate"]:
+    try:
+        __import__(pkg)
+    except ImportError:
+        print(f"[*] Menginstall dependensi {pkg} secara otomatis...", flush=True)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+from datasets import load_dataset
 
 # -----------------------------------------------------------------------------
 # 1. Konfigurasi Arsitektur WRAI-X (0.6B)
@@ -618,19 +623,154 @@ def run_transplant_and_training():
     torch.save(model.state_dict(), save_path)
     print(f"\n[OK] Model WRAI-X Berhasil Disimpan ke: {save_path} ({os.path.getsize(save_path)/1e6:.1f} MB)")
 
-    # Auto-run Kuantisasi ke INT8 Native C Binary
+MAGIC_HEADER = 0x57524149
+VERSION = 170
+
+def quantize_rowwise_int8(tensor):
+    if torch.is_tensor(tensor):
+        arr = tensor.detach().cpu().to(torch.float32).numpy()
+    else:
+        arr = np.asarray(tensor, dtype=np.float32)
+
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+
+    max_abs = np.max(np.abs(arr), axis=1, keepdims=True)
+    scales = np.where(max_abs < 1e-8, 1.0, max_abs / 127.0).astype(np.float32)
+    q_arr = np.clip(np.round(arr / scales), -128, 127).astype(np.int8)
+    return scales.flatten(), q_arr
+
+def export_tokenizer_vocab_bin(tok, output_path):
+    print(f"[*] Mengekspor Tokenizer Vocabulary ke: {output_path}...", flush=True)
+    vocab = tok.get_vocab()
+    num_tokens = len(vocab)
+    if num_tokens < VOCAB_SIZE:
+        num_tokens = VOCAB_SIZE
+
+    id_to_token = {token_id: token_str for token_str, token_id in vocab.items()}
+
+    with open(output_path, "wb") as f:
+        f.write(struct.pack("<II", num_tokens, 128))
+        for tid in range(num_tokens):
+            token_str = id_to_token.get(tid, f"<token_{tid}>")
+            raw_bytes = token_str.encode("utf-8", errors="replace")
+            if len(raw_bytes) > 255: raw_bytes = raw_bytes[:255]
+            f.write(struct.pack("<B", len(raw_bytes)))
+            f.write(raw_bytes)
+    print(f"[OK] Tokenizer binary selesai diekspor! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
+
+def pack_wrai_x_checkpoint(sd, output_bin_path):
+    print(f"[*] Mengemas bobot langsung ke Binary INT8 C: {output_bin_path}...")
+    with open(output_bin_path, "wb") as f:
+        header = struct.pack(
+            "<IH HHHHHHH II 36s",
+            MAGIC_HEADER,
+            VERSION,
+            NUM_LAYERS,
+            HIDDEN_DIM,
+            FFN_DIM,
+            NUM_HEADS,
+            HEAD_DIM,
+            WAVELET_LEVELS,
+            MAX_SEQ_LEN,
+            VOCAB_SIZE,
+            1, # INT8
+            b"\x00" * 36
+        )
+        f.write(header)
+
+        # 1. Embeddings
+        print("  -> Menulis Embeddings...")
+        s_emb, q_emb = quantize_rowwise_int8(sd["embed.weight"])
+        f.write(s_emb.tobytes())
+        f.write(q_emb.tobytes())
+
+        # 2. Per-Layer Weights
+        for l in range(NUM_LAYERS):
+            if (l + 1) % 7 == 0 or l == 0:
+                print(f"  -> Mengemas Layer {l+1}/{NUM_LAYERS}...")
+
+            # Norms (FP32)
+            f.write(sd[f"layers.{l}.rms_ret.weight"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.rms_ffn.weight"].float().numpy().tobytes())
+
+            # Memory RetNet (INT8)
+            for w_name in ["w_q", "w_k", "w_v", "w_out"]:
+                s_w, q_w = quantize_rowwise_int8(sd[f"layers.{l}.{w_name}.weight"])
+                f.write(s_w.tobytes()); f.write(q_w.tobytes())
+
+            # Decays (FP32)
+            f.write(sd[f"layers.{l}.decay_m"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.decay_r"].float().numpy().tobytes())
+
+            # Haar Bridge (FP32)
+            f.write(sd[f"layers.{l}.haar_bridge.low_gain"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.haar_bridge.mid_gain"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.haar_bridge.high_gain"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.haar_bridge.gate_w"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.haar_bridge.gate_b"].float().numpy().tobytes())
+
+            # Reasoning RetNet (INT8)
+            for w_name in ["w_qr", "w_kr", "w_vr", "w_out_r"]:
+                s_w, q_w = quantize_rowwise_int8(sd[f"layers.{l}.{w_name}.weight"])
+                f.write(s_w.tobytes()); f.write(q_w.tobytes())
+
+            # Thinking Gate (FP32)
+            f.write(sd[f"layers.{l}.think_gate.weight"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.think_gate.bias"].float().numpy().tobytes())
+
+            # HDC Scratchpad
+            s_hk, q_hk = quantize_rowwise_int8(sd[f"layers.{l}.hdc.proj_key.weight"])
+            s_hv, q_hv = quantize_rowwise_int8(sd[f"layers.{l}.hdc.proj_val.weight"])
+            f.write(s_hk.tobytes()); f.write(q_hk.tobytes())
+            f.write(s_hv.tobytes()); f.write(q_hv.tobytes())
+            f.write(sd[f"layers.{l}.hdc.gate_hdc.weight"].float().numpy().tobytes())
+            f.write(sd[f"layers.{l}.hdc.gate_hdc.bias"].float().numpy().tobytes())
+
+            # SwiGLU FFN (INT8)
+            for ffn_name in ["w_gate", "w_up", "w_down"]:
+                s_ffn, q_ffn = quantize_rowwise_int8(sd[f"layers.{l}.ffn.{ffn_name}.weight"])
+                f.write(s_ffn.tobytes()); f.write(q_ffn.tobytes())
+
+        # Final Norm
+        f.write(sd["ln_final.weight"].float().numpy().tobytes())
+
+    print(f"[OK SUCCESS] WRAI-X INT8 Binary Selesai Dibuat: {output_bin_path} ({os.path.getsize(output_bin_path)/1e6:.1f} MB)!\n")
+
+def auto_quantize_and_export(model, tok, save_dir):
     print("\n" + "=" * 70)
     print("   ⚡ OTOMATISASI KUANTISASI KE FORMAT INT8 NATIVE C BINARY          ")
     print("=" * 70)
-    try:
-        from quantize_wrai_x_06b_colab import export_tokenizer_vocab_bin, pack_wrai_x_checkpoint
-        vocab_out = os.path.join(os.path.dirname(save_path), "wrai_x_vocab.bin") if os.path.dirname(save_path) else "wrai_x_vocab.bin"
-        bin_out = os.path.join(os.path.dirname(save_path), "wrai_x_06b_int8.bin") if os.path.dirname(save_path) else "wrai_x_06b_int8.bin"
-        export_tokenizer_vocab_bin(vocab_out)
-        pack_wrai_x_checkpoint(save_path, bin_out)
-        print(f"\n[SELESAI 100%] File siap pakai di laptop: {bin_out} & {vocab_out}!")
-    except Exception as e:
-        print(f"[INFO] Kuantisasi dapat dijalankan terpisah via python final/quantize_wrai_x_06b_colab.py: {e}")
+    os.makedirs(save_dir, exist_ok=True)
+    vocab_out = os.path.join(save_dir, "wrai_x_vocab.bin")
+    bin_out = os.path.join(save_dir, "wrai_x_06b_int8.bin")
+
+    export_tokenizer_vocab_bin(tok, vocab_out)
+    pack_wrai_x_checkpoint(model.state_dict(), bin_out)
+    print(f"[SELESAI 100%] Berkas siap download ke laptop Anda:")
+    print(f"  -> Model Binary : {bin_out} ({os.path.getsize(bin_out)/1e6:.1f} MB)")
+    print(f"  -> Tokenizer    : {vocab_out} ({os.path.getsize(vocab_out)/1e6:.1f} MB)")
 
 if __name__ == "__main__":
+    # Jalankan Pipeline Utama
+    print("=" * 70)
+    print("   🌊 WRAI-X (0.6B) 1-CLICK COLAB ZERO-CONTAMINATION TRANSPLANT PIPELINE")
+    print("=" * 70)
+
+    # 1. Mount Drive otomatis jika di Colab
+    drive_dir = "/content/drive/MyDrive/WRAI_X_06B"
+    target_dir = drive_dir if os.path.exists("/content") else "."
+    if os.path.exists("/content"):
+        try:
+            from google.colab import drive
+            if not os.path.exists("/content/drive/MyDrive"):
+                drive.mount('/content/drive')
+            print(f"[OK] Google Drive terhubung! Hasil akan otomatis tersimpan di: {drive_dir}")
+        except Exception as e:
+            print(f"[INFO] Google Drive mount dilewati: {e}")
+            target_dir = "."
+
     run_transplant_and_training()
+
+    # Model & tokenizer sudah di-load di run_transplant_and_training,
+    # kuantisasi langsung dipanggil di dalam run_transplant_and_training.

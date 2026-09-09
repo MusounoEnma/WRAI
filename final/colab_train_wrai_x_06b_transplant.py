@@ -198,9 +198,11 @@ class WRAIXDualStateBlock(nn.Module):
         # 3. Haar Spectral Bridge
         self.haar_bridge = HaarMultiresolution1D(dim=hidden_dim, levels=WAVELET_LEVELS)
 
-        # 4. Adaptive Thinking Gate: gk = sigma(Wg [M, R]) (Transparan di awal)
+        # 4. Adaptive Thinking Gate: gk = alpha * sigma(Wg [M, R]) (Transparan di awal)
         self.think_gate = nn.Linear(hidden_dim * 2, hidden_dim, bias=True)
         nn.init.constant_(self.think_gate.bias, -5.0)
+        nn.init.zeros_(self.think_gate.weight)
+        self.alpha = nn.Parameter(torch.zeros(1))
 
         # 5. HDC Scratchpad
         self.hdc = HDCAssociativeScratchpad(dim=hidden_dim)
@@ -269,9 +271,9 @@ class WRAIXDualStateBlock(nn.Module):
         g_hdc = torch.sigmoid(self.hdc.gate_hdc(torch.cat([o_r, res], dim=-1)))
         o_r_hdc = o_r + (res * g_hdc)
 
-        # 5. Adaptive Thinking Gate
+        # 5. Adaptive Thinking Gate dengan Zero-Init Residual Alpha
         gate_think = torch.sigmoid(self.think_gate(torch.cat([o_m_filtered, o_r_hdc], dim=-1)))
-        ret_fused = o_m_filtered + (o_r_hdc * gate_think)
+        ret_fused = o_m_filtered + self.alpha * (o_r_hdc * gate_think)
 
         x = x + ret_fused
 
@@ -328,9 +330,9 @@ class WRAIXDualStateBlock(nn.Module):
         # 4. HDC Associative Scratchpad
         o_r_hdc, state_hdc = self.hdc(o_r, state_hdc)
 
-        # 5. Adaptive Thinking Gate
+        # 5. Adaptive Thinking Gate dengan Zero-Init Residual Alpha
         gate_think = torch.sigmoid(self.think_gate(torch.cat([o_m_filtered, o_r_hdc], dim=-1)))
-        ret_fused = o_m_filtered + (o_r_hdc * gate_think)
+        ret_fused = o_m_filtered + self.alpha * (o_r_hdc * gate_think)
 
         x = x + ret_fused
 
@@ -469,17 +471,18 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
         layer.w_k.weight.requires_grad = False
         layer.w_v.weight.requires_grad = False
         layer.w_out.weight.requires_grad = False
+        layer.w_qr.weight.requires_grad = False
+        layer.w_kr.weight.requires_grad = False
+        layer.w_vr.weight.requires_grad = False
+        layer.w_out_r.weight.requires_grad = False
 
-        # YANG DILATIH HANYA ADAPTER POLA WRAI-X:
+        # YANG DILATIH HANYA ADAPTER NALAR WRAI-X (Zero-Init Alpha + Gating + HDC + Haar):
+        layer.alpha.requires_grad = True
         layer.decay_m.requires_grad = True
         layer.decay_r.requires_grad = True
         layer.haar_bridge.requires_grad_(True)
         layer.think_gate.requires_grad_(True)
         layer.hdc.requires_grad_(True)
-        layer.w_qr.weight.requires_grad = True
-        layer.w_kr.weight.requires_grad = True
-        layer.w_vr.weight.requires_grad = True
-        layer.w_out_r.weight.requires_grad = True
 
     total_params = sum(p.numel() for p in wrai_model.parameters())
     trainable_params = sum(p.numel() for p in wrai_model.parameters() if p.requires_grad)

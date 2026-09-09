@@ -375,14 +375,15 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
 
     qwen = AutoModelForCausalLM.from_pretrained(
         source_model_name,
-        torch_dtype=torch.float32,
         device_map="cpu",
         trust_remote_code=True
     )
     qwen_sd = qwen.state_dict()
 
     print("[1/5] Mencangkok Embeddings Utuh (151,936 Token x 1024 Dim)...")
-    wrai_model.embed.weight.data.copy_(qwen_sd["model.embed_tokens.weight"])
+    qwen_embed = qwen_sd["model.embed_tokens.weight"]
+    v_copy = min(wrai_model.vocab_size, qwen_embed.size(0))
+    wrai_model.embed.weight.data[:v_copy].copy_(qwen_embed[:v_copy])
 
     print(f"[2/5] Mencangkok 28 Layer SwiGLU FFN & RMSNorms...")
     for l in range(NUM_LAYERS):
@@ -403,7 +404,9 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     # Final Norm & LM Head
     wrai_model.ln_final.weight.data.copy_(qwen_sd["model.norm.weight"])
     if "lm_head.weight" in qwen_sd:
-        wrai_model.output_proj.weight.data.copy_(qwen_sd["lm_head.weight"])
+        wrai_model.output_proj.weight.data[:v_copy].copy_(qwen_sd["lm_head.weight"][:v_copy])
+    else:
+        wrai_model.output_proj.weight.data[:v_copy].copy_(qwen_embed[:v_copy])
 
     print("[3/5] Mencangkok Attention Matrices ke Memory Retention (Mt)...")
     for l in range(NUM_LAYERS):
@@ -509,7 +512,7 @@ def run_transplant_and_training():
     if tok.pad_token is None: tok.pad_token = tok.eos_token
 
     print("[*] Menginisialisasi Arsitektur WRAI-X 0.6B...")
-    model = WRAIX06BModel(vocab_size=len(tok), num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
+    model = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
     
     # Lakukan Cangkok Bedah
     surgical_transplant_qwen_to_wrai_x(model, source_model_name=SOURCE_MODEL_NAME)

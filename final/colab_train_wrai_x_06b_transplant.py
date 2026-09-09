@@ -60,9 +60,9 @@ HEAD_DIM = 128             # 16 x 128 = 2048
 WAVELET_LEVELS = 4         # 4-Level Haar DWT
 VOCAB_SIZE = 151936        # Qwen 3 Vocab Size
 
-MAX_SEQ_LEN = 256
-BATCH_SIZE = 4
-GRAD_ACCUM_STEPS = 8       # Effective batch size = 32
+MAX_SEQ_LEN = 64           # 64 Token cukup untuk kurasi pola (menghemat VRAM 4x)
+BATCH_SIZE = 2             # Micro-batching untuk keamanan total VRAM GPU T4
+GRAD_ACCUM_STEPS = 5       # 5 micro-batches per step (10 sampel total)
 LEARNING_RATE = 1e-3       # Fast convergence for adapters
 WEIGHT_DECAY = 0.01
 
@@ -227,10 +227,10 @@ class WRAIXDualStateBlock(nn.Module):
 
         i_idx = torch.arange(T, device=x.device).view(T, 1)
         j_idx = torch.arange(T, device=x.device).view(1, T)
-        dist = (i_idx - j_idx).clamp(min=0).view(1, 1, T, T).float()
-        causal = (i_idx >= j_idx).view(1, 1, T, T).float()
+        dist = (i_idx - j_idx).clamp(min=0).view(1, 1, T, T).to(x.dtype)
+        causal = (i_idx >= j_idx).view(1, 1, T, T).to(x.dtype)
 
-        decay_m = torch.pow(gamma_m, dist) * causal
+        decay_m = (torch.pow(gamma_m, dist) * causal).to(q.dtype)
         attn_m = torch.matmul(q, k.transpose(-1, -2)) * decay_m
         o_m = torch.matmul(attn_m, v).permute(0, 2, 1, 3).contiguous().view(B * T, H * HD)
         o_m = self.group_norm_m(o_m)
@@ -247,7 +247,7 @@ class WRAIXDualStateBlock(nn.Module):
         vr = self.w_vr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3)
 
         gamma_r = torch.sigmoid(self.decay_r).view(1, H, 1, 1)
-        decay_r = torch.pow(gamma_r, dist) * causal
+        decay_r = (torch.pow(gamma_r, dist) * causal).to(qr.dtype)
         attn_r = torch.matmul(qr, kr.transpose(-1, -2)) * decay_r
         o_r = torch.matmul(attn_r, vr).permute(0, 2, 1, 3).contiguous().view(B * T, H * HD)
         o_r = self.group_norm_r(o_r)
@@ -257,7 +257,7 @@ class WRAIXDualStateBlock(nn.Module):
         k_hdc = torch.tanh(self.hdc.proj_key(o_r))
         v_hdc = torch.tanh(self.hdc.proj_val(o_r))
         bound = k_hdc * v_hdc
-        decay_hdc = (0.95 ** dist.view(1, T, T)) * causal.view(1, T, T)
+        decay_hdc = ((0.95 ** dist.view(1, T, T)) * causal.view(1, T, T)).to(bound.dtype)
         scratchpad = torch.matmul(decay_hdc, bound)
         res = scratchpad * k_hdc
         g_hdc = torch.sigmoid(self.hdc.gate_hdc(torch.cat([o_r, res], dim=-1)))
@@ -432,6 +432,8 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
 
     del qwen, qwen_sd
     gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     print("[4/5] MENGUNCI (FREEZING) BOBOT INTI PENGETAHUAN QWEN...")
     # Gembok Embeddings & Output Proj
@@ -516,6 +518,9 @@ def run_transplant_and_training():
     
     # Lakukan Cangkok Bedah
     surgical_transplant_qwen_to_wrai_x(model, source_model_name=SOURCE_MODEL_NAME)
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     model.to(DEVICE)
 
     # Siapkan Data Pola
@@ -549,23 +554,36 @@ def run_transplant_and_training():
     model.train()
     steps = 30
     t_start = time.time()
-
-    inp = all_inputs[:, :-1]
-    target = all_inputs[:, 1:]
-    m = all_masks[:, 1:]
+    micro_batch = 1  # Micro-batching 1 sample: Peak activation VRAM < 200 MB!
 
     for step in range(1, steps + 1):
         optimizer.zero_grad()
-        logits = model.forward_parallel(inp)
-        loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), target.reshape(-1), reduction="none")
-        masked_loss = (loss * m.reshape(-1)).sum() / (m.sum() + 1e-8)
+        total_step_loss = 0.0
 
-        masked_loss.backward()
+        num_samples = all_inputs.size(0)
+        indices = torch.randperm(num_samples)
+
+        for b_start in range(0, num_samples, micro_batch):
+            b_idx = indices[b_start:b_start + micro_batch]
+            inp_b = all_inputs[b_idx, :-1]
+            target_b = all_inputs[b_idx, 1:]
+            m_b = all_masks[b_idx, 1:]
+
+            logits = model.forward_parallel(inp_b)
+            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), target_b.reshape(-1), reduction="none")
+            masked_loss = (loss * m_b.reshape(-1)).sum() / (m_b.sum() + 1e-8)
+
+            scaled_loss = masked_loss / (num_samples / micro_batch)
+            scaled_loss.backward()
+            total_step_loss += masked_loss.item() * (len(b_idx) / num_samples)
+
+            del logits, loss, masked_loss, scaled_loss
+
         torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
         optimizer.step()
 
-        if step % 5 == 0 or step == 1:
-            print(f"  [*] Step {step:2d}/{steps} | Loss: {masked_loss.item():.4f} | Status: Adapter Belajar Pola Mulus", flush=True)
+        if step % 5 == 0 or step == 1 or step == steps:
+            print(f"  [*] Step {step:2d}/{steps} | Loss: {total_step_loss:.4f} | Status: Adapter Belajar Pola Mulus", flush=True)
 
     print(f"\n[OK SUCCESS] Adaptasi Pola Selesai dalam {time.time()-t_start:.2f} detik!\n")
 

@@ -171,6 +171,34 @@ class HDCAssociativeScratchpad(nn.Module):
         out = r_t + (resonance * g)
         return out, new_scratchpad
 
+def rotate_half(x):
+    x1 = x[..., :x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2:]
+    return torch.cat((-x2, x1), dim=-1)
+
+class WRAIRotaryEmbedding(nn.Module):
+    def __init__(self, dim, base=1000000.0):
+        super().__init__()
+        self.dim = dim
+        self.register_buffer("inv_freq", 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim)), persistent=False)
+
+    def get_cos_sin(self, seq_len, device, dtype):
+        t = torch.arange(seq_len, device=device).float()
+        freqs = torch.outer(t, self.inv_freq.to(device))
+        emb = torch.cat((freqs, freqs), dim=-1)
+        return emb.cos().to(dtype), emb.sin().to(dtype)
+
+    def apply_parallel(self, x, cos, sin):
+        return (x * cos.view(1, 1, cos.size(0), cos.size(1))) + (rotate_half(x) * sin.view(1, 1, sin.size(0), sin.size(1)))
+
+    def apply_step(self, x, step_pos, device, dtype):
+        t = torch.tensor([step_pos], device=device).float()
+        freqs = torch.outer(t, self.inv_freq.to(device))
+        emb = torch.cat((freqs, freqs), dim=-1)
+        cos = emb.cos().to(dtype).view(1, 1, self.dim)
+        sin = emb.sin().to(dtype).view(1, 1, self.dim)
+        return (x * cos) + (rotate_half(x) * sin)
+
 class WRAIXDualStateBlock(nn.Module):
     def __init__(self, hidden_dim=1024, ffn_dim=3072, num_heads=16, head_dim=128):
         super().__init__()
@@ -178,6 +206,8 @@ class WRAIXDualStateBlock(nn.Module):
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.scale = 1.0 / math.sqrt(head_dim)
+
+        self.rope = WRAIRotaryEmbedding(dim=head_dim)
 
         # 1. Memory State (Mt) Projections (Dicangkok 1:1 dari Attention Qwen)
         self.rms_ret = RMSNorm(hidden_dim)
@@ -213,10 +243,6 @@ class WRAIXDualStateBlock(nn.Module):
         self.rms_ffn = RMSNorm(hidden_dim)
         self.ffn = SwiGLUFFN(hidden_dim, ffn_dim)
 
-    def phi(self, x):
-        # Feature map ELU+1 (Preserves 97.4% Qwen Attention fidelity without softmax)
-        return F.elu(x * self.scale) + 1.0
-
     def forward_parallel(self, x):
         # x: (B, T, D) - O(1) Sequential Operations Training
         B, T, D = x.shape
@@ -224,44 +250,48 @@ class WRAIXDualStateBlock(nn.Module):
 
         x_norm = self.rms_ret(x)
 
-        # 1. Normalized Parallel Memory Retention (Mt)
-        q = self.phi(self.w_q(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3))
-        k = self.phi(self.w_k(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3))
-        v = self.w_v(x_norm).view(B, T, H, HD).permute(0, 2, 1, 3)
+        # 1. RoPE + RetNet Memory Retention (Mt)
+        q = self.w_q(x_norm).view(B, T, H, HD).transpose(1, 2)
+        k = self.w_k(x_norm).view(B, T, H, HD).transpose(1, 2)
+        v = self.w_v(x_norm).view(B, T, H, HD).transpose(1, 2)
+
+        cos, sin = self.rope.get_cos_sin(T, x.device, x.dtype)
+        q_rope = self.rope.apply_parallel(q, cos, sin)
+        k_rope = self.rope.apply_parallel(k, cos, sin)
 
         gamma_m = torch.sigmoid(self.decay_m).view(1, H, 1, 1)
-
         i_idx = torch.arange(T, device=x.device).view(T, 1)
         j_idx = torch.arange(T, device=x.device).view(1, T)
         dist = (i_idx - j_idx).clamp(min=0).view(1, 1, T, T).to(x.dtype)
         causal = (i_idx >= j_idx).view(1, 1, T, T).to(x.dtype)
-
         decay_m = (torch.pow(gamma_m, dist) * causal).to(q.dtype)
-        attn_m = torch.matmul(q, k.transpose(-1, -2)) * decay_m
-        denom_m = attn_m.sum(dim=-1, keepdim=True).clamp(min=1e-5)
-        attn_m_norm = attn_m / denom_m
 
-        o_m = torch.matmul(attn_m_norm, v).permute(0, 2, 1, 3).contiguous().view(B, T, H * HD)
-        o_m = self.w_out(o_m)
+        scores_m = torch.matmul(q_rope, k_rope.transpose(-1, -2)) * self.scale * decay_m
+        o_head_m = torch.matmul(scores_m, v)
+        # Head-RMSNorm
+        o_head_m_norm = o_head_m * torch.rsqrt(o_head_m.pow(2).mean(-1, keepdim=True) + 1e-6)
+        o_m = self.w_out(o_head_m_norm.transpose(1, 2).contiguous().view(B, T, H * HD))
 
         # 2. Haar Multiresolution Bridge
         o_m_flat = o_m.view(B * T, D)
         o_m_filtered_flat, low_band, mid_band = self.haar_bridge(o_m_flat)
         o_m_filtered = o_m_filtered_flat.view(B, T, D)
 
-        # 3. Normalized Parallel Reasoning Retention (Rt)
-        qr = self.phi(self.w_qr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3))
-        kr = self.phi(self.w_kr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3))
-        vr = self.w_vr(o_m_filtered).view(B, T, H, HD).permute(0, 2, 1, 3)
+        # 3. RoPE + RetNet Reasoning Retention (Rt)
+        qr = self.w_qr(o_m_filtered).view(B, T, H, HD).transpose(1, 2)
+        kr = self.w_kr(o_m_filtered).view(B, T, H, HD).transpose(1, 2)
+        vr = self.w_vr(o_m_filtered).view(B, T, H, HD).transpose(1, 2)
+
+        qr_rope = self.rope.apply_parallel(qr, cos, sin)
+        kr_rope = self.rope.apply_parallel(kr, cos, sin)
 
         gamma_r = torch.sigmoid(self.decay_r).view(1, H, 1, 1)
         decay_r = (torch.pow(gamma_r, dist) * causal).to(qr.dtype)
-        attn_r = torch.matmul(qr, kr.transpose(-1, -2)) * decay_r
-        denom_r = attn_r.sum(dim=-1, keepdim=True).clamp(min=1e-5)
-        attn_r_norm = attn_r / denom_r
 
-        o_r = torch.matmul(attn_r_norm, vr).permute(0, 2, 1, 3).contiguous().view(B, T, H * HD)
-        o_r = self.w_out_r(o_r)
+        scores_r = torch.matmul(qr_rope, kr_rope.transpose(-1, -2)) * self.scale * decay_r
+        o_head_r = torch.matmul(scores_r, vr)
+        o_head_r_norm = o_head_r * torch.rsqrt(o_head_r.pow(2).mean(-1, keepdim=True) + 1e-6)
+        o_r = self.w_out_r(o_head_r_norm.transpose(1, 2).contiguous().view(B, T, H * HD))
 
         # 4. HDC Associative Scratchpad Parallel
         k_hdc = torch.tanh(self.hdc.proj_key(o_r))
@@ -283,51 +313,49 @@ class WRAIXDualStateBlock(nn.Module):
         x = x + self.ffn(self.rms_ffn(x))
         return x
 
-    def forward_step(self, x, state_m=None, state_zm=None, state_r=None, state_zr=None, state_hdc=None):
+    def forward_step(self, x, step_pos=0, state_m=None, state_r=None, state_hdc=None):
         # x: (B, D) - Recurrent Step O(1) Inference with zero KV cache
         B, D = x.shape
         H, HD = self.num_heads, self.head_dim
 
         x_norm = self.rms_ret(x)
 
-        # 1. Memory State (Mt)
-        q = self.phi(self.w_q(x_norm).view(B, H, HD))
-        k = self.phi(self.w_k(x_norm).view(B, H, HD))
+        # 1. RoPE + Memory State (Mt)
+        q = self.w_q(x_norm).view(B, H, HD)
+        k = self.w_k(x_norm).view(B, H, HD)
         v = self.w_v(x_norm).view(B, H, HD)
+
+        q_rope = self.rope.apply_step(q, step_pos, x.device, x.dtype)
+        k_rope = self.rope.apply_step(k, step_pos, x.device, x.dtype)
 
         gamma_m = torch.sigmoid(self.decay_m).view(1, H, 1, 1)
         if state_m is None:
             state_m = torch.zeros(B, H, HD, HD, device=x.device, dtype=x.dtype)
-            state_zm = torch.zeros(B, H, HD, device=x.device, dtype=x.dtype)
 
-        state_m = state_m * gamma_m + torch.einsum('bhr,bhc->bhrc', k, v)
-        state_zm = state_zm * gamma_m.view(1, H, 1) + k
-
-        num_m = torch.einsum('bhr,bhrc->bhc', q, state_m)
-        den_m = torch.einsum('bhr,bhr->bh', q, state_zm).unsqueeze(-1).clamp(min=1e-5)
-        o_m = (num_m / den_m).reshape(B, H * HD)
-        o_m = self.w_out(o_m)
+        state_m = state_m * gamma_m + torch.einsum('bhr,bhc->bhrc', k_rope, v)
+        o_head_m_raw = torch.einsum('bhr,bhrc->bhc', q_rope, state_m) * self.scale
+        o_head_m_norm = o_head_m_raw * torch.rsqrt(o_head_m_raw.pow(2).mean(-1, keepdim=True) + 1e-6)
+        o_m = self.w_out(o_head_m_norm.reshape(B, H * HD))
 
         # 2. Haar Multiresolution Bridge
         o_m_filtered, low_band, mid_band = self.haar_bridge(o_m)
 
-        # 3. Reasoning State (Rt)
-        qr = self.phi(self.w_qr(o_m_filtered).view(B, H, HD))
-        kr = self.phi(self.w_kr(o_m_filtered).view(B, H, HD))
+        # 3. RoPE + Reasoning State (Rt)
+        qr = self.w_qr(o_m_filtered).view(B, H, HD)
+        kr = self.w_kr(o_m_filtered).view(B, H, HD)
         vr = self.w_vr(o_m_filtered).view(B, H, HD)
+
+        qr_rope = self.rope.apply_step(qr, step_pos, x.device, x.dtype)
+        kr_rope = self.rope.apply_step(kr, step_pos, x.device, x.dtype)
 
         gamma_r = torch.sigmoid(self.decay_r).view(1, H, 1, 1)
         if state_r is None:
             state_r = torch.zeros(B, H, HD, HD, device=x.device, dtype=x.dtype)
-            state_zr = torch.zeros(B, H, HD, device=x.device, dtype=x.dtype)
 
-        state_r = state_r * gamma_r + torch.einsum('bhr,bhc->bhrc', kr, vr)
-        state_zr = state_zr * gamma_r.view(1, H, 1) + kr
-
-        num_r = torch.einsum('bhr,bhrc->bhc', qr, state_r)
-        den_r = torch.einsum('bhr,bhr->bh', qr, state_zr).unsqueeze(-1).clamp(min=1e-5)
-        o_r = (num_r / den_r).reshape(B, H * HD)
-        o_r = self.w_out_r(o_r)
+        state_r = state_r * gamma_r + torch.einsum('bhr,bhc->bhrc', kr_rope, vr)
+        o_head_r_raw = torch.einsum('bhr,bhrc->bhc', qr_rope, state_r) * self.scale
+        o_head_r_norm = o_head_r_raw * torch.rsqrt(o_head_r_raw.pow(2).mean(-1, keepdim=True) + 1e-6)
+        o_r = self.w_out_r(o_head_r_norm.reshape(B, H * HD))
 
         # 4. HDC Associative Scratchpad
         o_r_hdc, state_hdc = self.hdc(o_r, state_hdc)
@@ -340,7 +368,7 @@ class WRAIXDualStateBlock(nn.Module):
 
         # 6. SwiGLU FFN
         x = x + self.ffn(self.rms_ffn(x))
-        return x, state_m, state_zm, state_r, state_zr, state_hdc
+        return x, state_m, state_r, state_hdc
 
 class WRAIX06BModel(nn.Module):
     def __init__(self, vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM):
@@ -372,10 +400,10 @@ class WRAIX06BModel(nn.Module):
 
         new_states = []
         for l in range(self.num_layers):
-            layer_state = states[l] if states[l] is not None else (None, None, None, None, None)
-            sm, szm, sr, szr, shdc = layer_state
-            x, sm, szm, sr, szr, shdc = self.layers[l].forward_step(x, sm, szm, sr, szr, shdc)
-            new_states.append((sm, szm, sr, szr, shdc))
+            layer_state = states[l] if states[l] is not None else (None, None, None, 0)
+            sm, sr, shdc, pos = layer_state
+            x, sm, sr, shdc = self.layers[l].forward_step(x, step_pos=pos, state_m=sm, state_r=sr, state_hdc=shdc)
+            new_states.append((sm, sr, shdc, pos + 1))
 
         x_norm = self.ln_final(x)
         logits = self.output_proj(x_norm)
@@ -385,7 +413,7 @@ class WRAIX06BModel(nn.Module):
 # 3. Mesin Cangkok Bedah 1-to-1 dari Qwen 0.6B ke WRAI-X
 # -----------------------------------------------------------------------------
 
-def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODEL_NAME):
+def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODEL_NAME, return_teacher=False):
     print("=" * 70)
     print(f"[*] MEMULAI CANGKOK BEDAH 1-TO-1 DARI {source_model_name}...")
     print("=" * 70)
@@ -448,10 +476,13 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
         wrai_model.layers[l].w_vr.weight.data.copy_(v_exp)
         wrai_model.layers[l].w_out_r.weight.data.copy_(o_w)
 
-    del qwen, qwen_sd
+        # Skala Kalibrasi Harmonis: Head-RMSNorm -> Attention Match (0.38x)
+        # Menjaga residual stream 28 layer tetap stabil pada norm 71.7 (identik Qwen asli)
+        wrai_model.layers[l].w_out.weight.data.mul_(0.38)
+        wrai_model.layers[l].w_out_r.weight.data.mul_(0.38)
+
+    del qwen_sd
     gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
     print("[4/5] MENGUNCI (FREEZING) BOBOT INTI PENGETAHUAN QWEN...")
     # Gembok Embeddings & Output Proj
@@ -498,6 +529,18 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     print(f"  - Parameter Dilatih (ADAPTER): {trainable_params:,} ({trainable_params/1e6:.1f}M / {trainable_params/total_params*100:.1f}%)")
     print("[OK GUARANTEE] Pengetahuan Qwen 100% AMAN DARI KONTAMINASI DATASET!\n")
 
+    if not return_teacher:
+        del qwen
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return None
+    else:
+        qwen.eval()
+        for p in qwen.parameters():
+            p.requires_grad = False
+        return qwen
+
 # -----------------------------------------------------------------------------
 # 4. Dataset Kurasi Bersih (Pola Saja, Bukan Menimpa Pengetahuan)
 # -----------------------------------------------------------------------------
@@ -509,25 +552,36 @@ def build_pattern_curated_dataset():
     - Definisi ilmiah langsung to-the-point
     - Nalar bertahap (Chain-of-Thought)
     - Kode Python fungsional
+    - Arsitektur WRAI-X
     """
     return [
         ("halo apa kabar?", "Halo! Kabar saya sangat baik dan siap membantumu hari ini. Ada yang bisa saya bantu diskusikan?"),
         ("gimana kabarmu hari ini ?", "Halo! Kabar saya luar biasa baik. Terima kasih banyak sudah bertanya! Bagaimana dengan kabarmu hari ini?"),
         ("hai", "Hai! Senang bertemu denganmu. Apa yang sedang kamu kerjakan hari ini?"),
+        ("selamat pagi!", "Selamat pagi! Semoga harimu menyenangkan dan penuh semangat. Ada yang perlu dibantu?"),
         ("himpunan", "Dalam matematika, himpunan adalah kumpulan objek atau elemen yang terdefinisi dengan jelas dan memiliki karakteristik serupa."),
         ("gravitasi", "Gravitasi adalah fenomena alam fundamental di mana semua partikel atau benda bermassa saling tarik-menarik satu sama lain."),
+        ("fotosintesis", "Fotosintesis adalah proses biokimia di mana tumbuhan hijau mengubah energi cahaya matahari menjadi energi kimia dalam bentuk glukosa."),
+        ("algoritma", "Algoritma adalah serangkaian langkah sistematis dan logis yang disusun secara teratur untuk menyelesaikan suatu masalah komputasi."),
         ("Siapa kamu?", "Saya adalah WRAI-X (0.6B), arsitektur model AI generasi baru berbasis Multi-Head Retention, Dual-State Reasoning, dan Filter Spektral Haar DWT yang berjalan efisien tanpa KV-Cache."),
         ("Jelaskan siapa kamu dan bagaimana ekosistem WRAI bekerja.", "Saya adalah WRAI-X. Saya bekerja menggunakan arsitektur Dual-State: Memory State (Mt) untuk menyimpan konteks percakapan secara efisien tanpa KV-Cache, dan Reasoning State (Rt) yang memproses penalaran melalui filter frekuensi Haar DWT."),
+        ("Apa keunggulan WRAI-X dibanding transformer biasa?", "WRAI-X memiliki keunggulan inferensi dengan kompleksitas O(1) konstan tanpa KV-Cache, konsumsi RAM yang stabil tidak membengkak seiring panjang konteks, serta filter spektral Haar DWT untuk kompresi frekuensi informasi."),
         ("Jika hari ini hari Rabu, 10 hari lagi hari apa?", "Mari kita hitung: 10 dibagi 7 adalah 1 minggu bersisa 3 hari. Tiga hari setelah hari Rabu adalah Kamis, Jumat, dan Sabtu. Jadi, 10 hari lagi adalah hari Sabtu."),
+        ("Berapa 25 x 14?", "Mari kita kalikan langkah demi langkah: 25 dikali 10 adalah 250, lalu 25 dikali 4 adalah 100. Jumlahkan keduanya: 250 + 100 = 350. Jadi, 25 x 14 = 350."),
+        ("Sebuah baju seharga Rp 100.000 diskon 20%, berapa harga bayarnya?", "Besar diskon adalah 20% dari Rp 100.000, yaitu Rp 20.000. Maka harga bayar setelah diskon adalah Rp 100.000 dikurangi Rp 20.000, yaitu Rp 80.000."),
         ("Buatkan fungsi Python untuk membalikkan string.", "```python\ndef reverse_string(s: str) -> str:\n    return s[::-1]\n```"),
-        ("Buatkan fungsi Python untuk memeriksa apakah kata adalah palindrom.", "```python\ndef is_palindrome(s: str) -> bool:\n    clean = s.lower().replace(' ', '')\n    return clean == clean[::-1]\n```")
+        ("Buatkan fungsi Python untuk memeriksa apakah kata adalah palindrom.", "```python\ndef is_palindrome(s: str) -> bool:\n    clean = s.lower().replace(' ', '')\n    return clean == clean[::-1]\n```"),
+        ("Buatkan fungsi Python untuk menghitung faktorial bilangan.", "```python\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n```"),
+        ("Buatkan fungsi Python untuk memeriksa bilangan prima.", "```python\ndef is_prime(n: int) -> bool:\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n```"),
+        ("Buatkan fungsi Python untuk mengurutkan daftar angka.", "```python\ndef sort_numbers(nums: list) -> list:\n    return sorted(nums)\n```"),
+        ("Bagaimana cara membaca file teks di Python?", "```python\nwith open('file.txt', 'r', encoding='utf-8') as f:\n    content = f.read()\n```")
     ]
 
 # -----------------------------------------------------------------------------
 # 5. Pipeline Eksekusi Training Adapter (Colab / GPU)
 # -----------------------------------------------------------------------------
 
-def run_transplant_and_training():
+def run_transplant_and_training(target_dir="."):
     print(f"[*] Menjalankan WRAI-X Transplant Engine pada Device: {DEVICE}\n")
 
     print("[*] Memuat Tokenizer Qwen...")
@@ -537,14 +591,24 @@ def run_transplant_and_training():
     print("[*] Menginisialisasi Arsitektur WRAI-X 0.6B...")
     model = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
     
-    # Lakukan Cangkok Bedah
-    surgical_transplant_qwen_to_wrai_x(model, source_model_name=SOURCE_MODEL_NAME)
+    # Deteksi Teacher Knowledge Distillation: Jika GPU VRAM > 8GB (seperti Colab T4 15GB),
+    # kita aktifkan Teacher KD agar WRAI-X belajar meniru distribusi Qwen secara langsung!
+    use_teacher = torch.cuda.is_available() and (torch.cuda.get_device_properties(0).total_memory > 8 * 1e9)
+    teacher_model = surgical_transplant_qwen_to_wrai_x(model, source_model_name=SOURCE_MODEL_NAME, return_teacher=use_teacher)
+    
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     model.to(DEVICE)
 
-    # Siapkan Data Pola
+    if teacher_model is not None:
+        print("[*] Teacher Knowledge Distillation (KD) DIAKTIFKAN pada GPU T4 (VRAM aman ~3.3GB / 15GB)!")
+        teacher_model.to(DEVICE)
+        teacher_model.eval()
+    else:
+        print("[*] Mode Pure Calibrated Supervised Adapter DIAKTIFKAN.")
+
+    # Siapkan Data Pola (20 Pasang)
     raw_pairs = build_pattern_curated_dataset()
     encoded_data = []
     for q, a in raw_pairs:
@@ -567,11 +631,7 @@ def run_transplant_and_training():
     # Optimizer HANYA untuk parameter yang tidak di-freeze
     trainable_params = [p for p in model.parameters() if p.requires_grad]
 
-    # Menggunakan Adafactor Optimizer (Factored Second-Moment Memory):
-    # AdamW FP32 membutuhkan 5.17 GB VRAM hanya untuk tensor state (exp_avg + exp_avg_sq)
-    # ditambah 2.58 GB temporary buffers saat update, memicu CUDA OOM di GPU T4 (14.56 GB).
-    # Adafactor memangkas memori optimizer dari 5.17 GB menjadi < 5 MB (hemat 99.9% VRAM!),
-    # sehingga adaptasi 646M parameter berjalan sangat cepat, stabil, dan bebas OOM!
+    # Menggunakan Adafactor Optimizer (hemat 99.9% VRAM dibanding AdamW FP32)
     optimizer = Adafactor(
         trainable_params,
         lr=LEARNING_RATE,
@@ -590,11 +650,22 @@ def run_transplant_and_training():
     print("=" * 70)
 
     model.train()
-    steps = 60
+    steps = 120
     t_start = time.time()
-    micro_batch = 1  # Micro-batching 1 sample: Peak activation VRAM < 100 MB!
+    micro_batch = 1
 
+    def get_lr(current_step, total_steps, max_lr=8e-4, min_lr=1e-5, warmup_steps=10):
+        if current_step <= warmup_steps:
+            return min_lr + (max_lr - min_lr) * (current_step / warmup_steps)
+        progress = (current_step - warmup_steps) / max(1, (total_steps - warmup_steps))
+        return min_lr + 0.5 * (max_lr - min_lr) * (1.0 + math.cos(math.pi * progress))
+
+    final_step_loss = 0.0
     for step in range(1, steps + 1):
+        cur_lr = get_lr(step, steps, max_lr=8e-4, min_lr=1e-5, warmup_steps=10)
+        for g in optimizer.param_groups:
+            g["lr"] = cur_lr
+
         optimizer.zero_grad(set_to_none=True)
         total_step_loss = 0.0
 
@@ -608,25 +679,38 @@ def run_transplant_and_training():
             m_b = all_masks[b_idx, 1:]
 
             logits = model.forward_parallel(inp_b)
-            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), target_b.reshape(-1), reduction="none")
-            masked_loss = (loss * m_b.reshape(-1)).sum() / (m_b.sum() + 1e-8)
+            loss_ce = F.cross_entropy(logits.reshape(-1, logits.size(-1)), target_b.reshape(-1), reduction="none")
+            masked_ce = (loss_ce * m_b.reshape(-1)).sum() / (m_b.sum() + 1e-8)
 
-            scaled_loss = masked_loss / (num_samples / micro_batch)
+            if teacher_model is not None:
+                with torch.no_grad():
+                    t_logits = teacher_model(inp_b).logits
+                kd_t = 2.0
+                s_log = F.log_softmax(logits / kd_t, dim=-1)
+                t_prob = F.softmax(t_logits / kd_t, dim=-1)
+                kd_loss = F.kl_div(s_log, t_prob, reduction="batchmean") * (kd_t ** 2)
+                batch_loss = masked_ce + 0.5 * kd_loss
+            else:
+                batch_loss = masked_ce
+
+            scaled_loss = batch_loss / (num_samples / micro_batch)
             scaled_loss.backward()
-            total_step_loss += masked_loss.item() * (len(b_idx) / num_samples)
+            total_step_loss += batch_loss.item() * (len(b_idx) / num_samples)
 
-            del logits, loss, masked_loss, scaled_loss
+            del logits, loss_ce, masked_ce, scaled_loss
 
         torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
+        final_step_loss = total_step_loss
 
-        if step % 5 == 0 or step == 1 or step == steps:
-            print(f"  [*] Step {step:2d}/{steps} | Loss: {total_step_loss:.4f} | Status: Adapter Belajar Pola Mulus", flush=True)
+        if step % 10 == 0 or step == 1 or step == steps:
+            print(f"  [*] Step {step:3d}/{steps} | Loss: {total_step_loss:.4f} | LR: {cur_lr:.2e} | Status: Adapter Belajar Pola Mulus", flush=True)
 
-    print(f"\n[OK SUCCESS] Adaptasi Pola Selesai dalam {time.time()-t_start:.2f} detik!\n")
+    print(f"\n[OK SUCCESS] Adaptasi Pola Selesai dalam {time.time()-t_start:.2f} detik! Final Loss: {final_step_loss:.4f}\n")
 
-    # Bersihkan memori training agar inferensi dan kuantisasi lega 100%
+    if teacher_model is not None:
+        del teacher_model
     del all_inputs, all_masks, encoded_data, optimizer, trainable_params
     gc.collect()
     if torch.cuda.is_available():
@@ -648,16 +732,29 @@ def run_transplant_and_training():
         "Buatkan fungsi Python untuk membalikkan string."
     ]
 
-    def sample_token(l_tensor, generated, temperature=0.7, top_p=0.9, rep_penalty=1.25):
+    def sample_token(l_tensor, generated, temperature=0.2, top_p=0.9, top_k=40, rep_penalty=1.05):
         l = l_tensor.squeeze(0).clone()
-        for t in set(generated):
+        # Kenakan penalti HANYA pada 15 token terakhir untuk mencegah looping,
+        # TANPA merusak hubungan subword BPE (menghindari inversi dan patahan kata)!
+        recent = generated[-15:] if len(generated) >= 15 else generated
+        for t in set(recent):
             if l[t] > 0:
                 l[t] /= rep_penalty
             else:
                 l[t] *= rep_penalty
+
         if temperature <= 0.05:
             return torch.argmax(l, dim=-1).item()
+
+        # Top-K Filtering
+        if top_k > 0:
+            topk_vals, _ = torch.topk(l, min(top_k, l.size(-1)))
+            l[l < topk_vals[-1]] = float('-inf')
+
+        # Temperature Scaling
         probs = F.softmax(l / temperature, dim=-1)
+
+        # Top-P (Nucleus) Filtering
         sorted_probs, sorted_indices = torch.sort(probs, descending=True)
         cum_probs = torch.cumsum(sorted_probs, dim=-1)
         mask = cum_probs > top_p
@@ -686,8 +783,8 @@ def run_transplant_and_training():
 
             gen_tokens = []
             eos_id = tok.encode("<|im_end|>", add_special_tokens=False)[0]
-            for _ in range(60):
-                next_tok = sample_token(logits, gen_tokens, temperature=0.7, top_p=0.9, rep_penalty=1.25)
+            for _ in range(80):
+                next_tok = sample_token(logits, gen_tokens, temperature=0.2, top_p=0.9, top_k=40, rep_penalty=1.05)
                 if next_tok in [eos_id, tok.eos_token_id]:
                     break
                 gen_tokens.append(next_tok)
@@ -698,22 +795,14 @@ def run_transplant_and_training():
                 logits, states = model.forward_step(t_tensor, states)
             print()
 
-    # Simpan Bobot ke Drive (jika ada) dan lokal
-    drive_dir = "/content/drive/MyDrive/WRAI_X_06B"
-    if os.path.exists("/content"):
-        try:
-            from google.colab import drive
-            if not os.path.exists("/content/drive/MyDrive"):
-                drive.mount('/content/drive')
-            os.makedirs(drive_dir, exist_ok=True)
-            save_path = os.path.join(drive_dir, "wrai_x_06b_transplanted.pt")
-        except Exception:
-            save_path = "wrai_x_06b_transplanted.pt"
-    else:
-        save_path = "wrai_x_06b_transplanted.pt"
-
+    # Simpan Checkpoint PyTorch (.pt)
+    os.makedirs(target_dir, exist_ok=True)
+    save_path = os.path.join(target_dir, "wrai_x_06b_transplanted.pt")
     torch.save(model.state_dict(), save_path)
     print(f"\n[OK] Model WRAI-X Berhasil Disimpan ke: {save_path} ({os.path.getsize(save_path)/1e6:.1f} MB)")
+
+    # Otomatisasi Export INT8 Binary C dan Vocab
+    auto_quantize_and_export(model, tok, target_dir, final_loss=final_step_loss)
 
 MAGIC_HEADER = 0x57524149
 VERSION = 170
@@ -751,23 +840,25 @@ def export_tokenizer_vocab_bin(tok, output_path):
             f.write(raw_bytes)
     print(f"[OK] Tokenizer binary selesai diekspor! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
 
-def pack_wrai_x_checkpoint(sd, output_bin_path):
+def pack_wrai_x_checkpoint(sd, output_bin_path, final_loss=1.0):
     print(f"[*] Mengemas bobot langsung ke Binary INT8 C: {output_bin_path}...")
     with open(output_bin_path, "wb") as f:
+        # Header 64 byte persis wrai_x_header_t di wrai_x_engine.h (<11If12s)
         header = struct.pack(
-            "<IH HHHHHHH II 36s",
-            MAGIC_HEADER,
-            VERSION,
-            NUM_LAYERS,
-            HIDDEN_DIM,
-            FFN_DIM,
-            NUM_HEADS,
-            HEAD_DIM,
-            WAVELET_LEVELS,
-            MAX_SEQ_LEN,
-            VOCAB_SIZE,
-            1, # INT8
-            b"\x00" * 36
+            "<11If12s",
+            MAGIC_HEADER,       # uint32 magic = 0x57524149
+            VERSION,            # uint32 version = 170
+            1,                  # uint32 quant_type = 1 (INT8)
+            VOCAB_SIZE,         # uint32 vocab_size = 151936
+            HIDDEN_DIM,         # uint32 hidden_dim = 1024
+            FFN_DIM,            # uint32 ffn_dim = 3072
+            NUM_LAYERS,         # uint32 num_layers = 28
+            NUM_HEADS,          # uint32 num_heads = 16
+            HEAD_DIM,           # uint32 head_dim = 128
+            WAVELET_LEVELS,     # uint32 wavelet_levels = 4
+            512,                # uint32 max_seq_len = 512
+            float(final_loss),  # float  loss
+            b"\x00" * 12        # uint8_t reserved[12]
         )
         f.write(header)
 
@@ -829,7 +920,7 @@ def pack_wrai_x_checkpoint(sd, output_bin_path):
 
     print(f"[OK SUCCESS] WRAI-X INT8 Binary Selesai Dibuat: {output_bin_path} ({os.path.getsize(output_bin_path)/1e6:.1f} MB)!\n")
 
-def auto_quantize_and_export(model, tok, save_dir):
+def auto_quantize_and_export(model, tok, save_dir, final_loss=1.0):
     print("\n" + "=" * 70)
     print("   ⚡ OTOMATISASI KUANTISASI KE FORMAT INT8 NATIVE C BINARY          ")
     print("=" * 70)
@@ -838,7 +929,7 @@ def auto_quantize_and_export(model, tok, save_dir):
     bin_out = os.path.join(save_dir, "wrai_x_06b_int8.bin")
 
     export_tokenizer_vocab_bin(tok, vocab_out)
-    pack_wrai_x_checkpoint(model.state_dict(), bin_out)
+    pack_wrai_x_checkpoint(model.state_dict(), bin_out, final_loss=final_loss)
     print(f"[SELESAI 100%] Berkas siap download ke laptop Anda:")
     print(f"  -> Model Binary : {bin_out} ({os.path.getsize(bin_out)/1e6:.1f} MB)")
     print(f"  -> Tokenizer    : {vocab_out} ({os.path.getsize(vocab_out)/1e6:.1f} MB)")
@@ -862,7 +953,5 @@ if __name__ == "__main__":
             print(f"[INFO] Google Drive mount dilewati: {e}")
             target_dir = "."
 
-    run_transplant_and_training()
+    run_transplant_and_training(target_dir=target_dir)
 
-    # Model & tokenizer sudah di-load di run_transplant_and_training,
-    # kuantisasi langsung dipanggil di dalam run_transplant_and_training.

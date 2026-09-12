@@ -22,7 +22,8 @@ library_name: c-native
 
 > **⚠️ Research Disclaimer:** This model is an **Experimental Proof-of-Concept (PoC)** designed to explore the feasibility of transplanting Transformer quadratic attention into **Dual-State Recurrent Retention + Discrete Haar Wavelet Transform (DWT)** without training from scratch. It is **not** a production-ready conversational agent, but rather an open research artifact intended for AI systems researchers, students, and low-power edge computing enthusiasts.
 
-* **GitHub Repository:** [https://github.com/YourUsername/WRAI](https://github.com/YourUsername/WRAI) *(Update with your repository URL)*
+* **Hugging Face Model Hub:** [https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)
+* **GitHub Repository:** [https://github.com/MusounoEnma/WRAI](https://github.com/MusounoEnma/WRAI)
 * **Base Pre-trained Brain:** `Qwen/Qwen2.5-0.5B` (100% Frozen FFN, RMSNorm, and Embeddings)
 * **Total Measured Parameters:** **831,268,848 Parameters** (~0.83B)
 * **Available Artifact Formats:**

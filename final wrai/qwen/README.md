@@ -12,15 +12,16 @@ Folder ini menyimpan bobot model **WRAI-X (0.8B)** hasil transplantasi:
 
 ## 📥 Cara Mendapatkan Bobot Model (Download)
 
-Karena file `.bin` (1.35 GB) dan `.pt` (1.66 GB) melebihi batas 100 MB GitHub, bobot dihosting di **Hugging Face Model Hub**.
+Karena file `.bin` (1.35 GB) dan `.pt` (1.66 GB) melebihi batas 100 MB GitHub, bobot dihosting di **Hugging Face Model Hub**:  
+👉 **[https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)**
 
 ### Cara 1: Menggunakan Script Python Otomatis
-Jalankan script downloader:
+Cukup jalankan script downloader (akan mengunduh otomatis dari repo Hugging Face):
 ```bash
-python download_weights.py --repo YourUsername/wrai-x-08b
+python download_weights.py
 ```
 
 ### Cara 2: Download Manual via Browser / Wget
-Download file langsung dari repositori Hugging Face Anda, lalu letakkan di dalam folder `qwen/` ini:
+Unduh file langsung dari [Hugging Face Repository](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3), lalu letakkan di dalam folder `qwen/` ini:
 * `wrai_x_08b_int8.bin`
 * `wrai_x_08b_transplanted.pt`

@@ -135,15 +135,18 @@ WRAI/
 
 ### 1. Clone Repositori
 ```bash
-git clone https://github.com/YourUsername/WRAI.git
+git clone https://github.com/MusounoEnma/WRAI.git
 cd WRAI/"final wrai"
 ```
 
 ### 2. Download Bobot Model (1.35 GB INT8)
-Karena file bobot INT8 (`wrai_x_08b_int8.bin`) berukuran 1.35 GB (melebihi batas 100 MB GitHub), unduh bobot dari Hugging Face Model Hub:
+Bobot resmi dihosting di **Hugging Face Model Hub**:  
+👉 **[https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)**
+
+Cukup jalankan script downloader otomatis:
 ```bash
 cd qwen
-python download_weights.py --repo YourUsername/wrai-x-08b
+python download_weights.py
 cd ..
 ```
 

@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 
-DEFAULT_REPO = "YourUsername/wrai-x-08b"  # Ganti dengan Hugging Face repository Anda
+DEFAULT_REPO = "Musouno-Enma99/WRAI-X-0.8B-Qwen3"
 FILES_TO_DOWNLOAD = [
     "wrai_x_08b_int8.bin",
     "wrai_x_08b_transplanted.pt"

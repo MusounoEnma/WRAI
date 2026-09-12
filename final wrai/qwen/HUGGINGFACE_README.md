@@ -38,7 +38,7 @@ Standard Transformer architectures suffer from a fundamental memory scaling bott
 
 Rather than training a billion-parameter model from scratch at massive computational expense, the WRAI-X project explores **Architectural Transmutation (Transplantation)**:
 1. **Leveraging Pre-Trained Knowledge**: We preserve and freeze the pre-trained SwiGLU FFN knowledge layers, RMSNorms, and embeddings from **Qwen3-0.6B**.
-2. **Replacing Quadratic Attention with Dual-State Retention ($M_t / R_t$)**: Inspired by *Microsoft Research's RetNet*, sequence context is compressed into fixed-size state matrices ($128 \times 128$) updated in-place recursively — achieving **Zero KV-Cache ($O(1)$ scaling with respect to sequence length $T$)**.
+2. **Replacing Quadratic Attention with Dual-State Retention ($M_t / R_t$)**: Inspired by *Microsoft Research's RetNet*, sequence context is compressed into fixed-size state matrices ($128 \times 128$) updated in-place recursively — achieving **Zero KV-Cache ($O(1)$ persistent state memory with respect to context length)**.
 3. **4-Level 1D Discrete Haar Wavelet Transform (DWT)**: Decomposes latent representation signals into low-frequency approximations (global semantics) and high-frequency details (local syntax).
 4. **Pure Native C Inference Engine**: Completely eliminates Python and heavy runtimes. Powered by Win32/POSIX virtual memory-mapping (`mmap`) and 256-bit AVX SIMD execution.
 
@@ -50,7 +50,7 @@ We strongly believe in academic integrity and radical transparency regarding mod
 
 ### ✅ Validated & Working Well:
 * **Recurrent Numerical Stability**: The decay parameter $\gamma$ and per-head RetNet GroupNorm normalization remain strictly stable without numerical drift or exploding activations over long generation loops.
-* **Empirically Proven Zero KV-Cache ($O(1)$ w.r.t Context Length)**: The physical memory footprint of the active process remains completely flat (**+0.00 MB delta**) from token $T=1$ to long context sequences.
+* **Empirically Proven Zero KV-Cache ($O(1)$ Persistent State Memory w.r.t. Context Length)**: Retains historical context inside a fixed **29.42 MB** recurrent state buffer across 28 layers with zero dynamic heap reallocations (`malloc` = 0, `realloc` = 0) and flat physical RAM footprint (+0.00 MB delta) from token $T=1$ to long context sequences.
 * **Low-Power CPU Viability**: Operates smoothly on consumer laptop CPUs (benchmarked on a 2014 AMD A8 Puma+ APU) at ~2 – 3 tokens/second without requiring dedicated GPU hardware.
 * **Output Formatting**: Consistently triggers structured Chain-of-Thought thinking blocks (`<think> ... </think>`) and basic greeting routines.
 
@@ -74,19 +74,31 @@ The following metrics were captured directly via **Windows NT Kernel Memory APIs
 
 $$\text{Paging Calculation: } 234,259 \text{ pages} \times 4,096 \text{ bytes} \approx \mathbf{915 \text{ MB}} \quad (\text{Exact match to 912.90 MB Working Set})$$
 
-### Empirical Context Scaling Benchmark ($T = 1 \dots 32\text{K}$)
+### 1. Dedicated Recurrent State Buffer Audit (The Core Architectural Proof)
+Across the generation lifecycle from short prompt ($T=16$) to long context ($T=8,192$), WRAI-X retains contextual history in-place with zero dynamic heap reallocations:
+
+| Empirical Audit Metric | Short Context ($T = 16$) | Long Context ($T = 8,192$) | Scalability Impact |
+| :--- | :---: | :---: | :--- |
+| **WRAI-X Persistent Recurrent State** | **29.42 MB** | **29.42 MB** | **$\Delta\text{State} = \mathbf{0.0000\text{ MB}}$ (Strictly Constant)** |
+| **Dynamic Heap Calls during Inference** | **0 (`malloc` = 0)** | **0 (`realloc` = 0)** | **Zero heap fragmentation or re-allocation** |
+| **Equivalent Transformer KV-Cache (FP16)\*** | **7.00 MB** | **3,584.00 MB (3.50 GB)** | Linear $O(T)$ memory growth ($512\times$ explosion) |
+| **WRAI-X Memory Advantage vs. Transformer** | Baseline | **-3,554.58 MB (-99.2%)** | Completely eliminates KV-cache blowout |
+
+### 2. Operating System Working Set (Physical RAM via Windows NT `psapi.h`)
 
 | Context Length ($T$) | Physical RAM (WRAI-X C Engine) | Measured RAM Delta | Equivalent Transformer (KV-Cache Only)* | WRAI-X Context Memory Status |
 | :---: | :---: | :---: | :---: | :---: |
-| **$T = 1$** | **918.62 MB** | **+0.00 MB** | 0.44 MB | $O(1)$ Constant State |
-| **$T = 64$** | **918.61 MB** | **-0.01 MB** | 28.00 MB | $O(1)$ Constant State |
-| **$T = 256$** | **918.61 MB** | **-0.01 MB** | 112.00 MB | $O(1)$ Constant State |
-| **$T = 1,024$** | **918.61 MB** | **-0.01 MB** | 448.00 MB | $O(1)$ Constant State |
+| **$T = 1$** | **918.62 MB** | **+0.00 MB** | 0.44 MB | $O(1)$ Persistent State |
+| **$T = 16$** | **918.62 MB** | **+0.00 MB** | 7.00 MB | $O(1)$ Persistent State |
+| **$T = 64$** | **918.61 MB** | **-0.01 MB** | 28.00 MB | $O(1)$ Persistent State |
+| **$T = 256$** | **918.61 MB** | **-0.01 MB** | 112.00 MB | $O(1)$ Persistent State |
+| **$T = 1,024$** | **918.61 MB** | **-0.01 MB** | 448.00 MB | $O(1)$ Persistent State |
 | **$T = 4,096$** | **918.61 MB** | **-0.01 MB** | **1,792.00 MB (1.75 GB)** | **Zero Cache Overhead** |
 | **$T = 8,192$** | **918.61 MB** | **-0.01 MB** | **3,584.00 MB (3.50 GB)** | **Zero Cache Overhead** |
 | **$T = 32,768$ (32K)** | **918.61 MB** | **-0.01 MB** | **14,336.00 MB (14.0 GB)** | **Eliminates OOM Risk** |
 
-> *\* **Equivalent Transformer Reference Configuration**: Theoretical KV-Cache calculation assumes $L=28$ layers, $H_{kv}=16$ key-value heads, $d_k=128$ head dimension in standard FP16 ($2 \times 28 \times 16 \times 128 \times 2 = 229,376\text{ bytes/token} \approx 0.4375\text{ MB/token}$).*
+> *\* **Equivalent Transformer Reference Configuration**: Theoretical KV-Cache calculation assumes $L=28$ layers, $H_{kv}=16$ key-value heads, $d_k=128$ head dimension in standard FP16 ($2 \times 28 \times 16 \times 128 \times 2 = 229,376\text{ bytes/token} \approx 0.4375\text{ MB/token}$).*  
+> **WRAI-X Mathematical Complexity**: Memory is strictly **$O(1)$ persistent state memory with respect to context length $T$**. The recurrent state size is fixed at $S_t \in \mathbb{R}^{L \times H \times d_k \times d_k}$ (scaling purely with architectural dimensions $\mathcal{O}(L \cdot H \cdot d_k^2)$, independent of sequence length $T$). All historical context is retained inside fixed-dimension dual recurrent matrices $S_t \in \mathbb{R}^{128 \times 128}$ per head, requiring only **29.42 MB** of total recurrent state buffers throughout the entire lifetime of the process.
 
 ## 🚀 Getting Started
 
@@ -108,8 +120,8 @@ The full transplant training script, verification suite, and Google Colab notebo
 
 ## 🗺️ Continuous Evolution & Roadmap
 
-WRAI-X (0.8B) represents the **Foundation Phase** of this research. The architecture is actively designed for modular evolution:
-- [x] **v0.8B Foundation (Active)**: Core Proof-of-Concept on Qwen3-0.6B backbone with verified $O(1)$ Zero KV-Cache.
+WRAI-X (0.8B-class) represents the **Foundation Phase (v0.1.0)** of this research. The architecture is actively designed for modular evolution:
+- [x] **v0.1.0 Foundation (Current Release)**: Core Proof-of-Concept on Qwen3-0.6B backbone with verified $O(1)$ persistent state memory (Zero KV-Cache).
 - [ ] **Scaling to 1.5B & 3B**: Expanding the transplant pipeline to Qwen2.5-1.5B and Meta Llama-3.2 for enhanced logic and coding.
 - [ ] **Universal Multi-Model Engine**: Dynamic tensor-dimension auto-discovery in C (load any WRAI model binary seamlessly).
 - [ ] **Extended Stream Tuning**: Continued distillation on conversational datasets for enhanced natural fluency.

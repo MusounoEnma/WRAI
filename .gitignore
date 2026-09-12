@@ -2,17 +2,24 @@
 # WRAI .gitignore
 # =============================================================================
 
-# Large Model Weights & Checkpoints (Host on Hugging Face / GitHub Releases)
+# Large Model Weights & Checkpoints (>100MB, Host on Hugging Face / Releases)
 *.bin
 *.pt
 *.pth
 *.ckpt
 *.safetensors
-1.7b models/
+
+# Allow vocabulary binary (small, ~1.5 MB)
+!*vocab.bin
+
+# Large weights directories
 models/
+models x/
+models x
+1.7b models/
 backups/
 
-# Compiled Executables & Objects
+# Compiled Executables & Objects (build from source or download from Releases)
 *.exe
 *.o
 *.obj

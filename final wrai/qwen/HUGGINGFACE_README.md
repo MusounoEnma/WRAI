@@ -82,16 +82,26 @@ $$\text{Paging Calculation: } 234,259 \text{ pages} \times 4,096 \text{ bytes} \
 ### Option 1: Native C Inference (Windows / Linux)
 1. Clone the project repository:
    ```bash
-   git clone https://github.com/YourUsername/WRAI.git
-   cd WRAI/"final wrai"
+   git clone https://github.com/MusounoEnma/WRAI.git
+   cd WRAI/wrai-x
    ```
-2. Place `wrai_x_08b_int8.bin` inside the `qwen/` folder.
+2. Place `wrai_x_08b_int8.bin` inside the `qwen/` folder (or run `python qwen/download_weights.py`).
 3. Double-click **`run_wrai_x.bat`** (or execute `.\engine\wrai_x.exe`).
 
 ### Option 2: PyTorch Experimentation (Google Colab / Python)
 The full transplant training script, verification suite, and Google Colab notebook are available in the GitHub repository under `training/`:
 * `training/colab_train_wrai_x_08b_transplant.py`
 * `training/WRAI_X_08B_COLAB.ipynb`
+
+---
+
+## 🗺️ Continuous Evolution & Roadmap
+
+WRAI-X (0.8B) represents the **Foundation Phase** of this research. The architecture is actively designed for modular evolution:
+- [x] **v0.8B Foundation (Active)**: Core Proof-of-Concept on Qwen2.5-0.5B backbone with verified $O(1)$ Zero KV-Cache.
+- [ ] **Scaling to 1.5B & 3B**: Expanding the transplant pipeline to Qwen2.5-1.5B and Meta Llama-3.2 for enhanced logic and coding.
+- [ ] **Universal Multi-Model Engine**: Dynamic tensor-dimension auto-discovery in C (load any WRAI model binary seamlessly).
+- [ ] **Extended Stream Tuning**: Continued distillation on conversational datasets for enhanced natural fluency.
 
 ---
 

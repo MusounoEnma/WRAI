@@ -102,9 +102,9 @@ Pengukuran konsumsi RAM proses dilakukan secara kontinu saat panjang urutan toke
 
 ```
 WRAI/
-├── final wrai/                         # 🎯 RILIS FINAL WRAI-X (0.8B)
+├── wrai-x/                             # 🚀 WRAI-X (0.8B) CORE WORKSPACE (Modular Base)
 │   ├── run_wrai_x.bat                  # Launcher 1-klik untuk Windows
-│   ├── README.md                       # Panduan teknis rilis final
+│   ├── README.md                       # Panduan teknis arsitektur & engine
 │   │
 │   ├── qwen/                           # Bobot Model & Skrip Unduh
 │   │   ├── wrai_x_vocab.bin            # Vocabulary BPE 151.936 token (1.52 MB, ada di repo)
@@ -136,7 +136,7 @@ WRAI/
 ### 1. Clone Repositori
 ```bash
 git clone https://github.com/MusounoEnma/WRAI.git
-cd WRAI/"final wrai"
+cd WRAI/wrai-x
 ```
 
 ### 2. Download Bobot Model (1.35 GB INT8)
@@ -155,6 +155,16 @@ Cukup klik dua kali file **`run_wrai_x.bat`** atau jalankan lewat terminal:
 ```cmd
 run_wrai_x.bat
 ```
+
+---
+
+## 🗺️ Peta Jalan & Pengembangan Berkelanjutan (Roadmap)
+
+WRAI-X (0.8B) adalah **fase fondasi awal** dari riset arsitektur WRAI. Arsitektur ini sengaja dirancang modular dan terbuka untuk ekspansi ke model-model open-weights berikutnya:
+- [x] **v0.8B Foundation (Rilis Saat Ini)**: Validasi empiris transmutasi arsitektur Qwen2.5-0.5B dengan O(1) Zero KV-Cache.
+- [ ] **Skalabilitas 1.5B & 3B**: Mengaplikasikan pipeline transplantasi ke model berukuran lebih besar (seperti Qwen2.5-1.5B dan Meta Llama-3.2) untuk kapabilitas nalar logika yang lebih tajam.
+- [ ] **Universal Multi-Model Engine**: Deteksi dimensi tensor secara dinamis di C Engine (satu binary `.exe` untuk menjalankan model biner WRAI mana pun).
+- [ ] **Tuning Konteks Panjang**: Melanjutkan proses distilasi dan tuning dataset percakapan untuk memperhalus kelancaran tata bahasa.
 
 ---
 

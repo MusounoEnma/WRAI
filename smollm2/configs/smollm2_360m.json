@@ -1,0 +1,23 @@
+{
+  "model_type": "wrai_smollm2",
+  "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
+  "num_layers": 32,
+  "hidden_size": 960,
+  "num_heads": 15,
+  "head_dim": 64,
+  "intermediate_size": 2560,
+  "vocab_size": 49152,
+  "rms_norm_eps": 1e-05,
+  "max_seq_len": 2048,
+  "retention": {
+    "decay_m_init": 0.95,
+    "decay_r_init": 0.85,
+    "gamma_min": 0.50,
+    "gamma_max": 0.999
+  },
+  "wavelet": {
+    "type": "Haar1D",
+    "levels": 4
+  },
+  "estimated_int8_mb": 360
+}

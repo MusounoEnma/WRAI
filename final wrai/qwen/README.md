@@ -1,27 +1,27 @@
 # 🧠 WRAI-X (0.8B) Model Weights
 
-Folder ini menyimpan bobot model **WRAI-X (0.8B)** hasil transplantasi:
+This directory stores the **WRAI-X (0.8B)** model weight artifacts:
 
-| Nama File | Ukuran | Format | Deskripsi |
+| Filename | Size | Format | Description |
 | :--- | :--- | :--- | :--- |
-| `wrai_x_vocab.bin` | **1.52 MB** | Binary BPE Table | Sudah disertakan langsung di repositori Git. |
-| `wrai_x_08b_int8.bin` | **1.35 GB** | INT8 Row-wise (mmap) | Biner terkuantisasi untuk eksekusi di Native C Engine. |
-| `wrai_x_08b_transplanted.pt` | **1.66 GB** | PyTorch Checkpoint | Bobot asli untuk fine-tuning lanjutan di Google Colab. |
+| `wrai_x_vocab.bin` | **1.52 MB** | Binary BPE Table | Included directly in this Git repository. |
+| `wrai_x_08b_int8.bin` | **1.35 GB** | INT8 Row-wise (mmap) | Quantized binary for the Native C Inference Engine. |
+| `wrai_x_08b_transplanted.pt` | **1.66 GB** | PyTorch Checkpoint | Floating-point checkpoint for research & continued fine-tuning. |
 
 ---
 
-## 📥 Cara Mendapatkan Bobot Model (Download)
+## 📥 Downloading Model Weights
 
-Karena file `.bin` (1.35 GB) dan `.pt` (1.66 GB) melebihi batas 100 MB GitHub, bobot dihosting di **Hugging Face Model Hub**:  
+Because `.bin` (1.35 GB) and `.pt` (1.66 GB) exceed GitHub's 100 MB file limit, model weights are hosted on the **Hugging Face Model Hub**:  
 👉 **[https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)**
 
-### Cara 1: Menggunakan Script Python Otomatis
-Cukup jalankan script downloader (akan mengunduh otomatis dari repo Hugging Face):
+### Method 1: Automated Python Script (Recommended)
+Run the automated downloader helper (requires `huggingface_hub`):
 ```bash
 python download_weights.py
 ```
 
-### Cara 2: Download Manual via Browser / Wget
-Unduh file langsung dari [Hugging Face Repository](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3), lalu letakkan di dalam folder `qwen/` ini:
+### Method 2: Manual Download via Browser / Wget
+Download directly from the [Hugging Face Repository](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3) and place the files inside this `qwen/` directory:
 * `wrai_x_08b_int8.bin`
 * `wrai_x_08b_transplanted.pt`

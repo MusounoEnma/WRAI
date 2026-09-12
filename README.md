@@ -3,27 +3,27 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![C Standard](https://img.shields.io/badge/C-C99%20Pure%20Native-00599C?logo=c)](final%20wrai/engine/src/wrai_x_engine.c)
-[![Architecture](https://img.shields.io/badge/Architecture-Dual--State%20Retention%20%2B%20Haar%20DWT-ff69b4)](final%20wrai/)
+[![Architecture](https://img.shields.io/badge/Architecture-Dual--State%20Retention%20%2B%20Haar%20DWT-ff69b4)](wrai-x/)
 [![Memory Complexity](https://img.shields.io/badge/RAM%20Scaling-O(1)%20Constant%20(Zero%20KV--Cache)-brightgreen)](final%20wrai/engine/audit/)
 [![Hardware Target](https://img.shields.io/badge/Hardware-x86__64%20AVX%20SIMD%20%2B%20OpenMP-orange)](final%20wrai/engine/)
 
 ---
 
-## 📌 Pendahuluan & Filosofi Desain
+## 📌 Introduction & Design Philosophy
 
-Proyek **WRAI-X (0.8B)** lahir dari pendekatan rekayasa yang pragmatis, transparan, dan berlandaskan teori yang mapan: **kami tidak mengklaim menemukan roda baru dari nol**, melainkan **menggabungkan dan mentransplantasikan teknik-teknik komputasi mutakhir yang terbukti secara matematis** ke dalam satu sistem inferensi CPU yang sangat efisien dan berdaya rendah.
+The **WRAI-X (0.8B)** project stems from a pragmatic, transparent, and mathematically grounded engineering philosophy: **we do not claim to reinvent the wheel from scratch**. Instead, **we synthesize and transplant proven foundational techniques** into a unified, lightweight, and low-power CPU inference framework.
 
-Transformer konvensional memiliki kelemahan mendasar: **KV-Cache yang membengkak secara linear $O(T)$**, yang menyedot gigabyte memori RAM ketika percakapan memanjang. 
+Conventional Transformers suffer from an inherent memory scaling bottleneck: **Linear KV-Cache Growth ($O(T)$)**, which consumes gigabytes of RAM/VRAM as conversation lengths expand.
 
-Untuk memecahkan masalah tersebut secara tuntas tanpa melatih model miliaran parameter dari nol (yang memakan biaya ratusan ribu dolar), WRAI-X melakukan **transplantasi arsitektur (Architectural Transmutation)**:
-1. **Mempertahankan Otak Pre-trained**: Memanfaatkan Feed-Forward Network (FFN), SwiGLU, RMSNorm, dan Unembedding Head dari **Qwen3-0.6B** yang dibekukan (*frozen*).
-2. **Mengganti Kuadratik Attention dengan Dual Retention**: Mengganti Multi-Head Attention dengan **Dual-State Recurrent Retention ($M_t / R_t$)** yang mengunci memori dalam matriks berdimensi tetap ($128 \times 128$) — **Zero KV-Cache ($O(1)$ Memory)**.
-3. **Penyaringan Spektral 4-Level Haar Wavelet (DWT)**: Mengurai sinyal representasi laten menjadi komponen frekuensi rendah (konteks global) dan frekuensi tinggi (sintaksis lokal).
-4. **Pure Native C Inference Engine**: Engine mandiri tanpa Python, tanpa PyTorch, dan tanpa runtime berat, menggunakan *zero-heap virtual memory-mapping* (`mmap`) dan AVX SIMD 256-bit.
+To solve this fundamentally without retraining a multi-billion parameter model from scratch at massive computational cost, WRAI-X performs an **Architectural Transmutation (Transplantation)**:
+1. **Preserving Pre-trained Knowledge**: Retaining and freezing the SwiGLU Feed-Forward Networks (FFN), RMSNorm layers, and Unembedding Head of **Qwen3-0.6B** (100% frozen).
+2. **Replacing Quadratic Attention with Dual-State Retention**: Substituting Multi-Head Attention with **Dual-State Recurrent Retention ($M_t / R_t$)**, locking contextual memory into fixed-size matrices ($128 \times 128$) — achieving **Zero KV-Cache ($O(1)$ Memory)**.
+3. **4-Level 1D Discrete Haar Wavelet Spectral Filtering (DWT)**: Decomposing latent representations into low-frequency approximations (global semantics) and high-frequency details (local syntax).
+4. **Pure Native C Inference Engine**: Completely independent of Python, PyTorch, or CUDA runtimes, utilizing *zero-heap virtual memory-mapping* (`mmap`) and 256-bit AVX SIMD execution.
 
 ---
 
-## 🏛️ Diagram Arsitektur Komputasi
+## 🏛️ Computational Architecture Diagram
 
 ```
                                 [ Input Token ID ]
@@ -64,26 +64,26 @@ Untuk memecahkan masalah tersebut secara tuntas tanpa melatih model miliaran par
 
 ---
 
-## 🔬 Bukti Empiris Hardware & Kernel OS (Bukan Mockup / Simulasi)
+## 🔬 Empirical OS Kernel & Hardware Audits (Not a Mockup / Simulation)
 
-Klaim performa WRAI-X bukan sekadar teori atau simulasi string. Seluruh metrik di bawah diukur langsung pada level kernel **Windows NT (`psapi.h`)** saat mengeksekusi model biner 1.35 GB di prosesor CPU x86_64:
+WRAI-X performance claims are verified through direct measurement at the **Windows NT Kernel API (`psapi.h`)** level while executing the 1.35 GB binary on physical x86_64 CPU hardware:
 
-### 1. Bukti Memory Mapping & Transfer Fisik Disk ke RAM
-| Parameter Audit Kernel OS | Nilai Riil Hardware | Keterangan Ilmiah |
+### 1. Verification of Memory Mapping & Disk-to-RAM Physical Transfer
+| Kernel & Hardware Metric | Measured Value | Forensic Significance |
 | :--- | :--- | :--- |
-| **Model Binary on Disk** | `wrai_x_08b_int8.bin` | **1.422.927.244 bytes** (~**1.35 GB**) |
-| **Windows Virtual Base** | `0x0000023c80000000` | Alamat memori virtual dialokasikan oleh kernel Windows |
-| **Physical Working Set RAM** | **912.90 MB** | Memori fisik chip RAM DDR yang terisi bobot aktif |
-| **Hardware Page Faults** | **234.259 halaman** | MMU CPU memicu interupsi fisik transfer blok 4 KB dari SSD ke RAM |
-| **Komputasi AVX SIMD** | **~1.30 GFLOPs / token** | Eksekusi nyata perkalian matriks terkuantisasi di register 256-bit |
+| **Model Binary on Storage** | `wrai_x_08b_int8.bin` | **1,422,927,244 bytes** (~**1.35 GB**) |
+| **Windows Virtual Base Address** | `0x0000023c80000000` | Virtual memory range assigned by Windows NT Memory Manager |
+| **Physical Working Set (RAM)** | **912.90 MB** | Physical DDR hardware RAM holding active model weights |
+| **Hardware Page Faults (MMU)** | **234,259 pages** | Direct physical transfer of 4 KB blocks from SSD to RAM by CPU MMU |
+| **SIMD AVX Computation** | **~1.30 GFLOPs / token** | Real quantized matrix dot-products in 256-bit CPU registers |
 
-> **Analisis Fisik**: $234.259\text{ pages} \times 4.096\text{ byte} = 959.524.864\text{ byte} \approx \mathbf{915\text{ MB}}$.
-> Angka ini persis sama dengan Working Set RAM fisik (912.90 MB). Ini adalah bukti forensik tak terbantahkan bahwa model benar-benar dibaca dari disk ke RAM hardware.
+> **Physical Calculation**: $234,259\text{ pages} \times 4,096\text{ bytes} = 959,524,864\text{ bytes} \approx \mathbf{915\text{ MB}}$.  
+> This closely matches the physical RAM Working Set (912.90 MB), providing undeniable forensic proof that weights are genuinely read and paged from disk into physical hardware RAM.
 
-### 2. Bukti Empiris Zero KV-Cache ($O(1)$ Scaling)
-Pengukuran konsumsi RAM proses dilakukan secara kontinu saat panjang urutan token meningkat:
+### 2. Empirical Proof of Zero KV-Cache ($O(1)$ Scaling)
+Physical RAM consumption of the active inference process measured continuously as sequence length increases:
 
-| Panjang Konteks ($T$) | RAM Fisik WRAI-X | Delta RAM WRAI-X | Transformer Tradisional (KV-Cache) | Status Cache |
+| Context Length ($T$) | Physical RAM (WRAI-X) | Delta RAM (WRAI-X) | Standard Transformer (KV-Cache) | Cache Status |
 | :---: | :---: | :---: | :---: | :---: |
 | **$T = 1$** | **918.62 MB** | **+0.00 MB** | 0.44 MB | **0% (Zero KV)** |
 | **$T = 16$** | **918.62 MB** | **+0.00 MB** | 7.00 MB | **0% (Zero KV)** |
@@ -93,99 +93,99 @@ Pengukuran konsumsi RAM proses dilakukan secara kontinu saat panjang urutan toke
 | **$T = 256$** | **918.61 MB** | **-0.01 MB** | 112.00 MB | **0% (Zero KV)** |
 | **$T = 1024$** | **918.61 MB** | **-0.01 MB** | 448.00 MB | **0% (Zero KV)** |
 
-* **Transformer Biasa**: Memori membengkak secara linear $O(T)$ hingga memicu Out-of-Memory (OOM).
-* **WRAI-X**: Memori tetap **konstan flat (+0.00 MB)** karena state matrix $S_t \in \mathbb{R}^{128 \times 128}$ diperbarui langsung di tempat (*in-place decay*).
+* **Standard Transformer**: Memory grows linearly $O(T)$, quickly triggering Out-of-Memory (OOM) on resource-constrained hardware.
+* **WRAI-X**: Memory remains strictly **flat and constant (+0.00 MB)** because state matrices $S_t \in \mathbb{R}^{128 \times 128}$ are updated in-place via recursive decay.
 
 ---
 
-## 📁 Struktur Repositori
+## 📁 Repository Structure
 
 ```
 WRAI/
 ├── wrai-x/                             # 🚀 WRAI-X (0.8B) CORE WORKSPACE (Modular Base)
-│   ├── run_wrai_x.bat                  # Launcher 1-klik untuk Windows
-│   ├── README.md                       # Panduan teknis arsitektur & engine
+│   ├── run_wrai_x.bat                  # 1-Click interactive launcher for Windows
+│   ├── README.md                       # Technical documentation & architecture details
 │   │
-│   ├── qwen/                           # Bobot Model & Skrip Unduh
-│   │   ├── wrai_x_vocab.bin            # Vocabulary BPE 151.936 token (1.52 MB, ada di repo)
-│   │   ├── download_weights.py         # Skrip otomatis download bobot dari Hugging Face
-│   │   └── README.md                   # Spesifikasi file .bin (1.35 GB) & .pt (1.66 GB)
+│   ├── qwen/                           # Model Weights & Automated Setup
+│   │   ├── wrai_x_vocab.bin            # BPE Vocabulary (151,936 tokens, 1.52 MB, in repo)
+│   │   ├── download_weights.py         # Automated downloader from Hugging Face Model Hub
+│   │   └── README.md                   # Specifications for .bin (1.35 GB) & .pt (1.66 GB)
 │   │
-│   ├── engine/                         # Native C Inference Engine
-│   │   ├── wrai_x.exe                  # Executable biner terkompilasi
-│   │   ├── build_wrai_x.bat            # Script kompilasi GCC MinGW-w64
-│   │   ├── run_wrai_x.bat              # Script eksekusi lokal
-│   │   ├── src/                        # Source code C (engine, CLI, detokenizer)
-│   │   ├── include/                    # Header file arsitektur C
-│   │   └── audit/                      # Alat uji forensik kernel OS & memory scaling
+│   ├── engine/                         # Pure Native C Inference Engine
+│   │   ├── wrai_x.exe                  # Optimized compiled binary (-O3 -mavx -fopenmp)
+│   │   ├── build_wrai_x.bat            # GCC MinGW-w64 build script
+│   │   ├── run_wrai_x.bat              # Local execution script
+│   │   ├── src/                        # C source files (kernel, CLI, BPE tables)
+│   │   ├── include/                    # Architectural C header definitions
+│   │   └── audit/                      # OS kernel & memory scaling forensic audit tools
 │   │
-│   └── training/                       # Source Code Training Transplantasi (PyTorch)
-│       ├── colab_train_wrai_x_08b_transplant.py # Pipeline transplantasi lengkap
-│       ├── WRAI_X_08B_COLAB.ipynb      # Notebook interaktif Google Colab
-│       ├── quantize_wrai_x_08b_colab.py# Konversi PyTorch FP32 -> INT8 Binary C
-│       └── poc_wrai_x_08b.py           # Validasi teoritis PyTorch
+│   └── training/                       # PyTorch Architectural Transplant Pipeline
+│       ├── colab_train_wrai_x_08b_transplant.py # End-to-end transplant training script
+│       ├── WRAI_X_08B_COLAB.ipynb      # Interactive Google Colab notebook
+│       ├── quantize_wrai_x_08b_colab.py# PyTorch FP32 -> INT8 Row-wise Binary Converter
+│       └── poc_wrai_x_08b.py           # Theoretical PyTorch verification suite
 │
-├── LICENSE                             # Lisensi Resmi Apache 2.0
-└── .gitignore                          # Konfigurasi proteksi batas upload GitHub
+├── LICENSE                             # Official Apache License 2.0
+└── .gitignore                          # Configured protection against >100MB GitHub limit
 ```
 
 ---
 
-## 🚀 Panduan Memulai Cepat (Quick Start)
+## 🚀 Quick Start Guide
 
-### 1. Clone Repositori
+### 1. Clone Repository
 ```bash
 git clone https://github.com/MusounoEnma/WRAI.git
 cd WRAI/wrai-x
 ```
 
-### 2. Download Bobot Model (1.35 GB INT8)
-Bobot resmi dihosting di **Hugging Face Model Hub**:  
+### 2. Download Model Weights (1.35 GB INT8)
+Official weights are hosted on the **Hugging Face Model Hub**:  
 👉 **[https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)**
 
-Cukup jalankan script downloader otomatis:
+Run the automated download helper:
 ```bash
 cd qwen
 python download_weights.py
 cd ..
 ```
 
-### 3. Jalankan Inference Engine (Windows)
-Cukup klik dua kali file **`run_wrai_x.bat`** atau jalankan lewat terminal:
+### 3. Launch Native C Inference Engine (Windows)
+Double-click **`run_wrai_x.bat`** or run via command line:
 ```cmd
 run_wrai_x.bat
 ```
 
 ---
 
-## 🗺️ Peta Jalan & Pengembangan Berkelanjutan (Roadmap)
+## 🗺️ Continuous Evolution & Roadmap
 
-WRAI-X (0.8B) adalah **fase fondasi awal** dari riset arsitektur WRAI. Arsitektur ini sengaja dirancang modular dan terbuka untuk ekspansi ke model-model open-weights berikutnya:
-- [x] **v0.8B Foundation (Rilis Saat Ini)**: Validasi empiris transmutasi arsitektur Qwen3-0.6B dengan O(1) Zero KV-Cache.
-- [ ] **Skalabilitas 1.5B & 3B**: Mengaplikasikan pipeline transplantasi ke model berukuran lebih besar (seperti Qwen2.5-1.5B dan Meta Llama-3.2) untuk kapabilitas nalar logika yang lebih tajam.
-- [ ] **Universal Multi-Model Engine**: Deteksi dimensi tensor secara dinamis di C Engine (satu binary `.exe` untuk menjalankan model biner WRAI mana pun).
-- [ ] **Tuning Konteks Panjang**: Melanjutkan proses distilasi dan tuning dataset percakapan untuk memperhalus kelancaran tata bahasa.
-
----
-
-## 📢 Catatan Transparansi & Status Checkpoint
-
-Sebagai komitmen keterbukaan ilmiah:
-* **Status Checkpoint Saat Ini**: Checkpoint yang disertakan adalah hasil rilis tahap adaptasi awal (*Stage-1 Architectural Transplant Proof-of-Concept*). Model telah berhasil mengadopsi format penalaran Chain-of-Thought (`<think> ... </think>`) dan sapaan responsif, dengan fokus utama pada **pembuktian stabilitas numerik recurrent retention dan eliminasi KV-cache**.
-* **Alpha Gate**: Pintu gerbang integrasi (*alpha gate*) pada checkpoint rilis awal berada pada rentang adaptasi stabil. Training lanjutan dapat dilakukan menggunakan script di folder `training/` dengan GPU Colab gratis.
+WRAI-X (0.8B) represents the **Foundation Phase** of this research. The architecture is actively designed for modular evolution:
+- [x] **v0.8B Foundation (Current Release)**: Empirical validation of Qwen3-0.6B architectural transmutation with verified $O(1)$ Zero KV-Cache.
+- [ ] **Scaling to 1.5B & 3B**: Applying the transplant pipeline to larger base models (such as Qwen2.5-1.5B and Meta Llama-3.2) for deeper logical reasoning.
+- [ ] **Universal Multi-Model Engine**: Dynamic tensor-dimension discovery in C (load any arbitrary WRAI binary model without recompilation).
+- [ ] **Extended Context Tuning**: Continued distillation on dialogue datasets for enhanced conversational fluency.
 
 ---
 
-## 🙏 Apresiasi & Landasan Teori (Acknowledgements)
+## 📢 Transparency & Checkpoint Notes
 
-Proyek ini dibangun di atas pondasi riset luar biasa dari komunitas kecerdasan buatan dunia:
-1. **Tim Qwen (Alibaba Cloud)**: Atas rilis model dasar [Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B) yang luar biasa di bawah lisensi Apache 2.0, yang menyediakan representasi FFN, embedding, dan tokenisasi berkualitas tinggi.
-2. **Microsoft Research (RetNet Authors - Sun et al., 2023)**: Atas makalah seminal *"Retentive Network: A Successor to Transformer for Large Language Models"*, yang menjadi landasan matematis mekanisme retensi rekursif berdimensi konstan $O(1)$.
-3. **Alfréd Haar (1909) & Komunitas Signal Processing**: Atas formulasi Discrete Haar Wavelet Transform (DWT) yang memungkinkan pemisahan fitur frekuensi multi-resolusi secara elegan tanpa komputasi rumit.
-4. **Pentti Kanerva & Komunitas Hyperdimensional Computing (HDC)**: Atas prinsip representasi vektor asosiatif berdimensi tinggi.
-5. **Georgi Gerganov & Komunitas C/C++ Open Source (*llama.cpp*)**: Atas inspirasi teknik eksekusi inferensi C murni, memory-mapping (`mmap`), dan SIMD unrolling yang membuktikan bahwa CPU sederhana mampu menjalankan LLM modern secara efisien.
+In accordance with our commitment to scientific honesty:
+* **Current Checkpoint Status**: The included weights represent an early **Stage-1 Architectural Transplant Proof-of-Concept**. The model successfully adheres to Chain-of-Thought formatting (`<think> ... </think>`) and responsive greeting routines, with the primary objective centered on **proving recurrent numerical stability and eliminating KV-Cache**.
+* **Alpha Gate**: The residual integration gate $\alpha$ is intentionally set within a conservative range (~0.01) during initial tuning to guarantee signal stability. Continued training can be conducted using scripts in the `training/` folder on free Google Colab GPUs.
 
 ---
 
-## 📜 Lisensi
-Proyek ini dilisensikan di bawah **Apache License 2.0** — lihat berkas [LICENSE](LICENSE) untuk ketentuan lengkap.
+## 🙏 Theoretical Foundations & Acknowledgements
+
+This project is built upon foundational research contributions from the global AI community:
+1. **Qwen Team (Alibaba Cloud)**: For releasing the outstanding [Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B) foundation model under the Apache 2.0 license, providing high-quality representations, FFNs, and BPE tokenization.
+2. **Microsoft Research (RetNet Authors - Sun et al., 2023)**: For the seminal paper *"Retentive Network: A Successor to Transformer for Large Language Models"*, mathematically formulating recursive linear retention and GroupNorm.
+3. **Alfréd Haar (1909) & The Signal Processing Community**: For the Discrete Haar Wavelet Transform (DWT), enabling elegant multi-resolution frequency decomposition.
+4. **Pentti Kanerva & The Hyperdimensional Computing (HDC) Community**: For foundational concepts in high-dimensional associative vector representations.
+5. **Georgi Gerganov & The Open-Source C/C++ Community (*llama.cpp*)**: For demonstrating that clean, dependency-free C/C++ implementations with memory-mapping (`mmap`) make LLMs accessible on everyday consumer hardware.
+
+---
+
+## 📜 License
+This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.

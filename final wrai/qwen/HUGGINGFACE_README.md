@@ -18,14 +18,14 @@ pipeline_tag: text-generation
 library_name: c-native
 ---
 
-# 🌊 WRAI-X (0.8B): Experimental Wavelet-Retention Hybrid
+# 🌊 WRAI-X (0.8B-Class / ~0.83B): Experimental Wavelet-Retention Hybrid
 
 > **⚠️ Research Disclaimer:** This model is an **Experimental Proof-of-Concept (PoC)** designed to explore the feasibility of transplanting Transformer quadratic attention into **Dual-State Recurrent Retention + Discrete Haar Wavelet Transform (DWT)** without training from scratch. It is **not** a production-ready conversational agent, but rather an open research artifact intended for AI systems researchers, students, and low-power edge computing enthusiasts.
 
 * **Hugging Face Model Hub:** [https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)
 * **GitHub Repository:** [https://github.com/MusounoEnma/WRAI](https://github.com/MusounoEnma/WRAI)
 * **Base Pre-trained Brain:** `Qwen/Qwen3-0.6B` (100% Frozen FFN, RMSNorm, and Embeddings)
-* **Total Measured Parameters:** **831,268,848 Parameters** (~0.83B)
+* **Total Measured Parameters:** **831,268,848 Unique Parameters** (~0.83B, placing it in the 0.8B-class)
 * **Available Artifact Formats:**
   * `wrai_x_08b_int8.bin` (1.35 GB) — *INT8 symmetric row-wise quantized binary for zero-heap C engine*
   * `wrai_x_08b_transplanted.pt` (1.66 GB) — *PyTorch checkpoint for research, inspection, and continued fine-tuning*
@@ -38,7 +38,7 @@ Standard Transformer architectures suffer from a fundamental memory scaling bott
 
 Rather than training a billion-parameter model from scratch at massive computational expense, the WRAI-X project explores **Architectural Transmutation (Transplantation)**:
 1. **Leveraging Pre-Trained Knowledge**: We preserve and freeze the pre-trained SwiGLU FFN knowledge layers, RMSNorms, and embeddings from **Qwen3-0.6B**.
-2. **Replacing Quadratic Attention with Dual-State Retention ($M_t / R_t$)**: Inspired by *Microsoft Research's RetNet*, sequence context is compressed into fixed-size state matrices ($128 \times 128$) updated in-place recursively — achieving **Zero KV-Cache ($O(1)$ constant memory)**.
+2. **Replacing Quadratic Attention with Dual-State Retention ($M_t / R_t$)**: Inspired by *Microsoft Research's RetNet*, sequence context is compressed into fixed-size state matrices ($128 \times 128$) updated in-place recursively — achieving **Zero KV-Cache ($O(1)$ scaling with respect to sequence length $T$)**.
 3. **4-Level 1D Discrete Haar Wavelet Transform (DWT)**: Decomposes latent representation signals into low-frequency approximations (global semantics) and high-frequency details (local syntax).
 4. **Pure Native C Inference Engine**: Completely eliminates Python and heavy runtimes. Powered by Win32/POSIX virtual memory-mapping (`mmap`) and 256-bit AVX SIMD execution.
 
@@ -50,7 +50,7 @@ We strongly believe in academic integrity and radical transparency regarding mod
 
 ### ✅ Validated & Working Well:
 * **Recurrent Numerical Stability**: The decay parameter $\gamma$ and per-head RetNet GroupNorm normalization remain strictly stable without numerical drift or exploding activations over long generation loops.
-* **Empirically Proven Zero KV-Cache ($O(1)$ RAM)**: The physical memory footprint of the active process remains completely flat (**+0.00 MB delta**) from token $T=1$ to long context sequences.
+* **Empirically Proven Zero KV-Cache ($O(1)$ w.r.t Context Length)**: The physical memory footprint of the active process remains completely flat (**+0.00 MB delta**) from token $T=1$ to long context sequences.
 * **Low-Power CPU Viability**: Operates smoothly on consumer laptop CPUs (benchmarked on a 2014 AMD A8 Puma+ APU) at ~2 – 3 tokens/second without requiring dedicated GPU hardware.
 * **Output Formatting**: Consistently triggers structured Chain-of-Thought thinking blocks (`<think> ... </think>`) and basic greeting routines.
 
@@ -63,7 +63,7 @@ We strongly believe in academic integrity and radical transparency regarding mod
 
 ## 📊 OS Kernel & Hardware Forensics (Empirical Audit)
 
-The following metrics were captured directly via **Windows NT Kernel Memory APIs (`psapi.h`)** while running `wrai_x_08b_int8.bin` on physical x86_64 CPU hardware:
+The following metrics were captured directly via **Windows NT Kernel Memory APIs (`psapi.h`)** while running the compiled release binary `wrai_x.exe` on physical x86_64 CPU hardware:
 
 | Kernel & Hardware Metric | Measured Value | Forensic Significance |
 | :--- | :--- | :--- |
@@ -71,11 +71,22 @@ The following metrics were captured directly via **Windows NT Kernel Memory APIs
 | **Physical Working Set (RAM)** | **912.90 MB** | Actual hardware DDR memory paged in by OS |
 | **Hardware Page Faults (MMU)** | **234,259 pages** | Direct physical transfer of 4 KB blocks from SSD to RAM |
 | **SIMD AVX Computation** | **~1.30 GFLOPs / token** | Real quantized matrix dot-products in 256-bit CPU registers |
-| **KV-Cache Memory Growth** | **+0.00 MB Flat ($O(1)$)** | Constant ~14.5 MB recurrent state matrix buffer |
 
 $$\text{Paging Calculation: } 234,259 \text{ pages} \times 4,096 \text{ bytes} \approx \mathbf{915 \text{ MB}} \quad (\text{Exact match to 912.90 MB Working Set})$$
 
----
+### Empirical Context Scaling Benchmark ($T = 1 \dots 32\text{K}$)
+
+| Context Length ($T$) | Physical RAM (WRAI-X C Engine) | Measured RAM Delta | Equivalent Transformer (KV-Cache Only)* | WRAI-X Context Memory Status |
+| :---: | :---: | :---: | :---: | :---: |
+| **$T = 1$** | **918.62 MB** | **+0.00 MB** | 0.44 MB | $O(1)$ Constant State |
+| **$T = 64$** | **918.61 MB** | **-0.01 MB** | 28.00 MB | $O(1)$ Constant State |
+| **$T = 256$** | **918.61 MB** | **-0.01 MB** | 112.00 MB | $O(1)$ Constant State |
+| **$T = 1,024$** | **918.61 MB** | **-0.01 MB** | 448.00 MB | $O(1)$ Constant State |
+| **$T = 4,096$** | **918.61 MB** | **-0.01 MB** | **1,792.00 MB (1.75 GB)** | **Zero Cache Overhead** |
+| **$T = 8,192$** | **918.61 MB** | **-0.01 MB** | **3,584.00 MB (3.50 GB)** | **Zero Cache Overhead** |
+| **$T = 32,768$ (32K)** | **918.61 MB** | **-0.01 MB** | **14,336.00 MB (14.0 GB)** | **Eliminates OOM Risk** |
+
+> *\* **Equivalent Transformer Reference Configuration**: Theoretical KV-Cache calculation assumes $L=28$ layers, $H_{kv}=16$ key-value heads, $d_k=128$ head dimension in standard FP16 ($2 \times 28 \times 16 \times 128 \times 2 = 229,376\text{ bytes/token} \approx 0.4375\text{ MB/token}$).*
 
 ## 🚀 Getting Started
 

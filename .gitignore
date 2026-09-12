@@ -44,6 +44,7 @@ __pycache__/
 # Logs & Temporary Scratch
 *.log
 scratch/
+scratch_*.py
 test_*.txt
 test_*.exe
 

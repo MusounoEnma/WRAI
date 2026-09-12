@@ -1,6 +1,6 @@
-# 🧠 WRAI-X (0.8B) Model Weights
+# 🧠 WRAI-X (0.8B-Class / ~0.83B) Model Weights
 
-This directory stores the **WRAI-X (0.8B)** model weight artifacts:
+This directory stores the **WRAI-X (0.8B-class / ~0.83B, 831M parameters)** model weight artifacts:
 
 | Filename | Size | Format | Description |
 | :--- | :--- | :--- | :--- |

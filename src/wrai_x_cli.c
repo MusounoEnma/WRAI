@@ -1,6 +1,6 @@
 /**
  * @file wrai_x_cli.c
- * @brief Interactive Native C CLI Terminal for WRAI-X (0.6B)
+ * @brief Interactive Native C CLI Terminal for WRAI-X (0.8B)
  */
 
 #include "wrai_x_engine.h"
@@ -17,11 +17,11 @@
 
 static void print_banner(const wrai_x_model_t* model) {
     printf("\n=================================================================\n");
-    printf("   🌊 WRAI-X (0.6B) PURE NATIVE C INFERENCE ENGINE               \n");
+    printf("   🌊 WRAI-X (0.8B) PURE NATIVE C INFERENCE ENGINE               \n");
     printf("=================================================================\n");
     printf(" [*] Arsitektur     : Dual-State Retention (Mt/Rt) + 4-Level Haar DWT\n");
     printf(" [*] Dimensi Laten  : D = 1024 (2^10), FFN = 3072, 28 Layers\n");
-    printf(" [*] Parameter      : ~650 Juta (Qwen 0.6B Frozen Brain + WRAI-X Adapters)\n");
+    printf(" [*] Parameter      : ~831 Juta (Qwen 0.8B Frozen Brain + WRAI-X Adapters)\n");
     printf(" [*] Kuantisasi     : INT8 Symmetric Row-wise\n");
     printf(" [*] Hardware Target: CPU (AVX 1.0 SIMD + OpenMP)\n");
     printf(" [*] Memory Buffer  : O(1) Constant (~14.5 MB State Buffer, 0%% KV-Cache)\n");
@@ -51,17 +51,17 @@ int main(int argc, char** argv) {
 
     const char* model_candidates[] = {
         argc >= 2 ? argv[1] : NULL,
-        "qwen\\wrai_x_06b_int8.bin",
-        "qwen/wrai_x_06b_int8.bin",
-        "..\\qwen\\wrai_x_06b_int8.bin",
-        "../qwen/wrai_x_06b_int8.bin",
-        "final wrai\\qwen\\wrai_x_06b_int8.bin",
-        "final wrai/qwen/wrai_x_06b_int8.bin",
-        "models x\\wrai_x_06b_int8.bin",
-        "models x/wrai_x_06b_int8.bin",
-        "wrai_x_06b_int8.bin",
-        "models\\wrai_x_06b_int8.bin",
-        "models/wrai_x_06b_int8.bin"
+        "qwen\\wrai_x_08b_int8.bin",
+        "qwen/wrai_x_08b_int8.bin",
+        "..\\qwen\\wrai_x_08b_int8.bin",
+        "../qwen/wrai_x_08b_int8.bin",
+        "final wrai\\qwen\\wrai_x_08b_int8.bin",
+        "final wrai/qwen/wrai_x_08b_int8.bin",
+        "models x\\wrai_x_08b_int8.bin",
+        "models x/wrai_x_08b_int8.bin",
+        "wrai_x_08b_int8.bin",
+        "models\\wrai_x_08b_int8.bin",
+        "models/wrai_x_08b_int8.bin"
     };
     const char* vocab_candidates[] = {
         argc >= 3 ? argv[2] : NULL,
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
                 if (vocab_candidates[i]) fprintf(stderr, "   - %s\n", vocab_candidates[i]);
             }
         }
-        fprintf(stderr, "\nPastikan folder 'models x' berisi wrai_x_06b_int8.bin dan wrai_x_vocab.bin.\n");
+        fprintf(stderr, "\nPastikan folder 'models x' berisi wrai_x_08b_int8.bin dan wrai_x_vocab.bin.\n");
         fprintf(stderr, "\nTekan Enter untuk keluar...");
         getchar();
         return 1;

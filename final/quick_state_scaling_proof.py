@@ -12,7 +12,7 @@ print("=" * 80)
 print(" 🔬 BUKTI EMPIRIS: STATE SHAPE & RUNTIME MEMORY FOOTPRINT (T = 128 s/d 8192)")
 print("=" * 80)
 
-# Konfigurasi Layer WRAI-X 0.6B
+# Konfigurasi Layer WRAI-X 0.8B
 B = 1
 H = 16
 HD = 128

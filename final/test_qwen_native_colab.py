@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-  🔬 QWEN/QWEN3-0.6B NATIVE COLAB DIAGNOSTIC & BEHAVIOR INSPECTOR
+  🔬 QWEN/QWEN3-0.8B NATIVE COLAB DIAGNOSTIC & BEHAVIOR INSPECTOR
 =============================================================================
  Purpose:
-  Run the ORIGINAL un-transplanted Qwen3-0.6B model on Google Colab to uncover:
+  Run the ORIGINAL un-transplanted Qwen3-0.8B model on Google Colab to uncover:
    1. The exact Native Chat Template & Special Tokens (<think>, </think>, etc.)
    2. How Native Qwen handles Thinking Chain-of-Thought (<think>...</think>)
    3. Native Indonesian vs English language separation & reasoning quality
@@ -19,7 +19,7 @@ import time
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-MODEL_NAME = "Qwen/Qwen3-0.6B"
+MODEL_NAME = "Qwen/Qwen3-0.8B"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def inspect_tokenizer_and_templates(tok):
@@ -94,7 +94,7 @@ def run_native_generation(model, tok, prompt_or_msgs, max_new_tokens=256, temper
 
 def run_comparative_diagnostics(model, tok):
     print("\n" + "=" * 75)
-    print(" 2. COMPARATIVE BENCHMARK DIAGNOSTICS (ORIGINAL QWEN 0.6B)")
+    print(" 2. COMPARATIVE BENCHMARK DIAGNOSTICS (ORIGINAL QWEN 0.8B)")
     print("=" * 75)
 
     test_cases = [
@@ -172,7 +172,7 @@ def run_comparative_diagnostics(model, tok):
 
 def start_interactive_session(model, tok):
     print("\n" + "=" * 75)
-    print(" 💬 INTERACTIVE CHAT WITH NATIVE QWEN 0.6B")
+    print(" 💬 INTERACTIVE CHAT WITH NATIVE QWEN 0.8B")
     print(" (Test any prompt in English, Indonesian, or code. Type 'exit' to quit)")
     print("=" * 75)
 
@@ -211,7 +211,7 @@ def start_interactive_session(model, tok):
 
 def main():
     print("=" * 75)
-    print("   🔬 QWEN 3 (0.6B) NATIVE TRANSFORMER BENCHMARK & DIAGNOSTIC")
+    print("   🔬 QWEN 3 (0.8B) NATIVE TRANSFORMER BENCHMARK & DIAGNOSTIC")
     print("=" * 75)
     print(f"[*] Device: {DEVICE}")
 
@@ -245,7 +245,7 @@ def main():
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Qwen3 0.6B Native Diagnostic")
+    parser = argparse.ArgumentParser(description="Qwen3 0.8B Native Diagnostic")
     parser.add_argument("--interactive", action="store_true", help="Start interactive mode directly")
     args, _ = parser.parse_known_args()
 

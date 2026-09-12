@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer, AutoConfig
 
-model_name = "Qwen/Qwen3-0.6B"
+model_name = "Qwen/Qwen3-0.8B"
 print(f"[*] Validating Tokenizer & Config for: {model_name}...")
 tok = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 cfg = AutoConfig.from_pretrained(model_name, trust_remote_code=True)

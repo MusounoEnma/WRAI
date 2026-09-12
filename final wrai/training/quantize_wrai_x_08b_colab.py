@@ -1,6 +1,6 @@
 """
 =============================================================================
- 🚀 WRAI-X (0.6B) DIRECT QUANTIZER & NATIVE C BINARY PACKER
+ 🚀 WRAI-X (0.8B) DIRECT QUANTIZER & NATIVE C BINARY PACKER
 =============================================================================
  Spesifikasi Target:
   - Dimensi: D=1024, FFN=3072, 28 Layers, 16 Heads, Head Dim=128, Vocab=151936
@@ -21,12 +21,12 @@ import torch
 from transformers import AutoTokenizer
 
 QUANT_MODE = "int8"
-DRIVE_DIR = "/content/drive/MyDrive/WRAI_X_06B_Models"
+DRIVE_DIR = "/content/drive/MyDrive/WRAI_X_08B_Models"
 LOCAL_FALLBACK_DIR = "."
 
-OUTPUT_BIN_NAME = f"wrai_x_06b_{QUANT_MODE}.bin"
+OUTPUT_BIN_NAME = f"wrai_x_08b_{QUANT_MODE}.bin"
 OUTPUT_VOCAB_NAME = "wrai_x_vocab.bin"
-SOURCE_MODEL_NAME = "Qwen/Qwen3-0.6B"
+SOURCE_MODEL_NAME = "Qwen/Qwen3-0.8B"
 
 # Header WRAI-X
 MAGIC_HEADER = 0x57524149  # "WRAI"
@@ -166,7 +166,7 @@ def pack_wrai_x_checkpoint(checkpoint_pt_path, output_bin_path):
 
 if __name__ == "__main__":
     export_tokenizer_vocab_bin(OUTPUT_VOCAB_NAME)
-    ckpt = "wrai_x_06b_transplanted.pt"
+    ckpt = "wrai_x_08b_transplanted.pt"
     if os.path.exists(ckpt):
         pack_wrai_x_checkpoint(ckpt, OUTPUT_BIN_NAME)
     else:

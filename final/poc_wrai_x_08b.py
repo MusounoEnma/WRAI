@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-   🌊 WRAI-X (0.6B) PROOF-OF-CONCEPT (PoC) ENGINE & ARCHITECTURE VALIDATOR
+   🌊 WRAI-X (0.8B) PROOF-OF-CONCEPT (PoC) ENGINE & ARCHITECTURE VALIDATOR
 =============================================================================
  Komponen Utama Blueprint WRAI-X yang Divalidasi:
  1. Dimension Lock: D=1024 (2^10), FFN=3072, 16 Heads, Head Dim=128
@@ -32,7 +32,7 @@ import torch.nn.functional as F
 from transformers import AutoTokenizer
 
 # -----------------------------------------------------------------------------
-# 1. Konfigurasi WRAI-X Locked 0.6B
+# 1. Konfigurasi WRAI-X Locked 0.8B
 # -----------------------------------------------------------------------------
 HIDDEN_DIM = 1024          # D = 1024 (2^10 murni untuk Haar DWT 4-Level)
 FFN_DIM = 3072             # SwiGLU FFN 1:1
@@ -403,7 +403,7 @@ def build_clean_poc_dataset():
         ("hai", "Hai! Senang bertemu denganmu. Ada proyek menarik apa yang sedang kamu rancang?"),
         ("himpunan", "Dalam matematika, himpunan adalah kumpulan objek atau elemen yang terdefinisi dengan jelas dan memiliki karakteristik serupa."),
         ("gravitasi", "Gravitasi adalah fenomena alam di mana semua benda yang memiliki massa saling tarik-menarik satu sama lain."),
-        ("Siapa kamu?", "Saya adalah WRAI-X (0.6B), arsitektur model bahasa AI generasi baru berbasis Multi-Head Retention, Dual-State Reasoning, dan Filter Spektral Haar DWT."),
+        ("Siapa kamu?", "Saya adalah WRAI-X (0.8B), arsitektur model bahasa AI generasi baru berbasis Multi-Head Retention, Dual-State Reasoning, dan Filter Spektral Haar DWT."),
         ("Jelaskan cara kerja arsitektur WRAI-X.", "WRAI-X bekerja menggunakan arsitektur Dual-State: Memory State (Mt) untuk menyimpan konteks percakapan secara efisien tanpa KV-Cache, dan Reasoning State (Rt) yang memproses nalar esensial melalui filter hierarki Haar DWT."),
         ("Jika hari ini hari Rabu, 10 hari lagi hari apa?", "Mari kita hitung: 10 dibagi 7 adalah 1 minggu bersisa 3 hari. Tiga hari setelah hari Rabu adalah Kamis, Jumat, dan Sabtu. Jadi, 10 hari lagi adalah hari Sabtu."),
         ("Buatkan fungsi Python untuk membalikkan string.", "```python\ndef reverse_string(s: str) -> str:\n    return s[::-1]\n```"),
@@ -416,7 +416,7 @@ def build_clean_poc_dataset():
 # -----------------------------------------------------------------------------
 def run_real_poc():
     print("=" * 70)
-    print("   🌊 MEMULAI PoC NYATA: ARSITEKTUR WRAI-X (0.6B DUAL-STATE & HAAR)   ")
+    print("   🌊 MEMULAI PoC NYATA: ARSITEKTUR WRAI-X (0.8B DUAL-STATE & HAAR)   ")
     print("=" * 70)
     print(f"[*] Perangkat Eksekusi    : {DEVICE}")
     print(f"[*] Dimensi Laten (D)     : {HIDDEN_DIM} (2^10 murni)")
@@ -426,7 +426,7 @@ def run_real_poc():
     print(f"[*] Associative Memory    : HDC Scratchpad Active\n")
 
     print("[*] Memuat Tokenizer Qwen 3...")
-    tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.8B", trust_remote_code=True)
     if tok.pad_token is None: tok.pad_token = tok.eos_token
     print(f"[OK] Tokenizer Siap! Vocab: {len(tok):,} tokens.\n")
 

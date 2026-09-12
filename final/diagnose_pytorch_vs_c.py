@@ -8,17 +8,17 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, "final")
-from test_wrai_x_06b_english import WRAIX06BModel, sample_token
+from test_wrai_x_08b_english import WRAIX06BModel, sample_token
 
 print("=" * 80)
 print(" 🔬 PYTORCH CHECKPOINT DIAGNOSTIC: TESTING GENERATION ON CPU")
 print("=" * 80)
 
-tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", local_files_only=True)
+tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.8B", local_files_only=True)
 print("[OK] Tokenizer loaded offline from cache.")
 
 model = WRAIX06BModel(vocab_size=151936, num_layers=28, hidden_dim=1024, ffn_dim=3072)
-ckpt_path = "models x/wrai_x_06b_transplanted.pt"
+ckpt_path = "models x/wrai_x_08b_transplanted.pt"
 print(f"[*] Loading weights from {ckpt_path}...")
 sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)
 

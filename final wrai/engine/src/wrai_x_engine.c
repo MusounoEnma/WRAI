@@ -1,6 +1,6 @@
 /**
  * @file wrai_x_engine.c
- * @brief Ultra-Fast AVX 1.0 Native Inference Engine for WRAI-X (0.6B)
+ * @brief Ultra-Fast AVX 1.0 Native Inference Engine for WRAI-X (0.8B)
  *        Dual-State (Mt/Rt), Haar 4-Level Multiresolution, HDC Scratchpad.
  */
 

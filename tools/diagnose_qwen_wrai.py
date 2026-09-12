@@ -5,7 +5,7 @@ import math
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-MODEL_ID = "Qwen/Qwen3-0.6B"
+MODEL_ID = "Qwen/Qwen3-0.8B"
 print("Loading Qwen...")
 tok = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True, local_files_only=True)
 qwen = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float32, device_map="cpu", trust_remote_code=True, local_files_only=True)

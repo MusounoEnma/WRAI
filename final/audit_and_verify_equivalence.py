@@ -1,6 +1,6 @@
 """
 =============================================================================
-   🔬 WRAI-X (0.6B) PARALLEL vs RECURRENT EQUIVALENCE & LAYER AUDIT TOOL
+   🔬 WRAI-X (0.8B) PARALLEL vs RECURRENT EQUIVALENCE & LAYER AUDIT TOOL
 =============================================================================
  Skrip audit tingkat lanjut sesuai rekomendasi peer-review:
  1. Audit Struktur Aktual Per-Layer (Memastikan Layer 0 s/d 27 Utuh)
@@ -38,8 +38,8 @@ NUM_HEADS = 16
 HEAD_DIM = 128
 WAVELET_LEVELS = 4
 
-DEFAULT_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_06B/wrai_x_06b_transplanted.pt"
-FALLBACK_CHECKPOINT = "wrai_x_06b_transplanted.pt"
+DEFAULT_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_08B/wrai_x_08b_transplanted.pt"
+FALLBACK_CHECKPOINT = "wrai_x_08b_transplanted.pt"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -362,7 +362,7 @@ def run_audit(ckpt_path=None):
 
     if ckpt_path is None:
         for c in [
-            os.path.join("models x", "wrai_x_06b_transplanted.pt"),
+            os.path.join("models x", "wrai_x_08b_transplanted.pt"),
             DEFAULT_CHECKPOINT,
             FALLBACK_CHECKPOINT
         ]:

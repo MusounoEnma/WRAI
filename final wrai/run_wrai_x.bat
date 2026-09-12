@@ -1,13 +1,13 @@
 @echo off
-title WRAI-X (0.6B) Native C Inference Studio
+title WRAI-X (0.8B) Native C Inference Studio
 cd /d "%~dp0"
 
 echo =================================================================
-echo    LAUNCHING WRAI-X (0.6B) PURE NATIVE C INFERENCE ENGINE
+echo    LAUNCHING WRAI-X (0.8B) PURE NATIVE C INFERENCE ENGINE
 echo =================================================================
 echo.
 
-engine\wrai_x.exe "qwen\wrai_x_06b_int8.bin" "qwen\wrai_x_vocab.bin"
+engine\wrai_x.exe "qwen\wrai_x_08b_int8.bin" "qwen\wrai_x_vocab.bin"
 
 echo.
 echo =================================================================

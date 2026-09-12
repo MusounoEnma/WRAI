@@ -1,12 +1,12 @@
 """
 =============================================================================
-   🔬 WRAI-X (0.6B) FORENSIC DEEP-INSPECTION & ZERO KV-CACHE AUDIT TOOL
+   🔬 WRAI-X (0.8B) FORENSIC DEEP-INSPECTION & ZERO KV-CACHE AUDIT TOOL
 =============================================================================
  Skrip Diagnostik Mandiri (Self-Contained) untuk Google Colab / CLI:
- 1. Pemeriksaan Fisik File di Google Drive (/MyDrive/WRAI_X_06B)
- 2. Forensik Binary C INT8 (wrai_x_06b_int8.bin): Header, Integritas Byte,
+ 1. Pemeriksaan Fisik File di Google Drive (/MyDrive/WRAI_X_08B)
+ 2. Forensik Binary C INT8 (wrai_x_08b_int8.bin): Header, Integritas Byte,
     Distribusi Kuantisasi, Parameter Per-Layer.
- 3. Forensik Checkpoint PyTorch (wrai_x_06b_transplanted.pt): Parameter,
+ 3. Forensik Checkpoint PyTorch (wrai_x_08b_transplanted.pt): Parameter,
     LoRA Merge Status, Weight Tying.
  4. Forensik Tokenizer Binary (wrai_x_vocab.bin): Token Nalar (<think>, </think>)
  5. BUKTI EMPIRIS & MATEMATIS "ZERO KV-CACHE":
@@ -36,7 +36,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # -----------------------------------------------------------------------------
-# 0. Konstanta & Konfigurasi Arsitektur WRAI-X (0.6B)
+# 0. Konstanta & Konfigurasi Arsitektur WRAI-X (0.8B)
 # -----------------------------------------------------------------------------
 MAGIC_HEADER = 0x57524149  # "WRAI"
 VERSION = 171
@@ -49,7 +49,7 @@ HEAD_DIM = 128
 WAVELET_LEVELS = 4
 MAX_SEQ_LEN = 512
 
-DEFAULT_DRIVE_DIR = "/content/drive/MyDrive/WRAI_X_06B"
+DEFAULT_DRIVE_DIR = "/content/drive/MyDrive/WRAI_X_08B"
 FALLBACK_LOCAL_DIR = "."
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -309,8 +309,8 @@ def locate_files(target_dir):
 
     for c in candidates:
         if os.path.exists(c):
-            bin_check = os.path.join(c, "wrai_x_06b_int8.bin")
-            pt_check = os.path.join(c, "wrai_x_06b_transplanted.pt")
+            bin_check = os.path.join(c, "wrai_x_08b_int8.bin")
+            pt_check = os.path.join(c, "wrai_x_08b_transplanted.pt")
             if os.path.exists(bin_check) or os.path.exists(pt_check):
                 resolved_dir = c
                 break
@@ -322,8 +322,8 @@ def locate_files(target_dir):
     print(f"[*] Direktori Terpilih : {os.path.abspath(resolved_dir)}")
 
     files_to_check = [
-        ("Binary INT8 C", "wrai_x_06b_int8.bin"),
-        ("PyTorch Checkpoint", "wrai_x_06b_transplanted.pt"),
+        ("Binary INT8 C", "wrai_x_08b_int8.bin"),
+        ("PyTorch Checkpoint", "wrai_x_08b_transplanted.pt"),
         ("Tokenizer Vocab Binary", "wrai_x_vocab.bin")
     ]
 
@@ -347,11 +347,11 @@ def locate_files(target_dir):
     return resolved_dir, found_map
 
 # -----------------------------------------------------------------------------
-# 3. Modul 2: Deep Forensic Binary INT8 C (wrai_x_06b_int8.bin)
+# 3. Modul 2: Deep Forensic Binary INT8 C (wrai_x_08b_int8.bin)
 # -----------------------------------------------------------------------------
 def inspect_binary_int8(bin_path):
     print("\n" + "=" * 70)
-    print(" 🔬 MODUL 2: FORENSIK BINARY C INT8 (wrai_x_06b_int8.bin)")
+    print(" 🔬 MODUL 2: FORENSIK BINARY C INT8 (wrai_x_08b_int8.bin)")
     print("=" * 70)
 
     if not bin_path or not os.path.exists(bin_path):
@@ -504,7 +504,7 @@ def inspect_binary_int8(bin_path):
             print(f"  • STATUS INTEGRITAS  : PERINGATAN! Ada selisih {remaining_bytes} bytes.")
 
 # -----------------------------------------------------------------------------
-# 4. Modul 3: Forensik Checkpoint PyTorch (wrai_x_06b_transplanted.pt)
+# 4. Modul 3: Forensik Checkpoint PyTorch (wrai_x_08b_transplanted.pt)
 # -----------------------------------------------------------------------------
 def inspect_pytorch_checkpoint(pt_path):
     print("\n" + "=" * 70)
@@ -605,7 +605,7 @@ def audit_zero_kv_cache(model_inst=None, sd=None):
 
     if model_inst is None:
         if sd is not None:
-            print("[*] Menginisialisasi Model WRAI-X 0.6B dengan bobot Checkpoint...", flush=True)
+            print("[*] Menginisialisasi Model WRAI-X 0.8B dengan bobot Checkpoint...", flush=True)
             model_inst = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
             model_inst = model_inst.to(DEVICE).to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
 
@@ -737,18 +737,18 @@ def main():
 
     print("""
 =============================================================================
-   🔬 WRAI-X (0.6B) COMPLETE FORENSIC INSPECTION & ZERO KV-CACHE AUDIT
+   🔬 WRAI-X (0.8B) COMPLETE FORENSIC INSPECTION & ZERO KV-CACHE AUDIT
 =============================================================================
  Target Engine: WRAI-X Dual-State Recurrent Language Model (Zero KV-Cache)
- Parameter    : 0.6B Native Transplanted from Qwen/Qwen3-0.6B
+ Parameter    : 0.8B Native Transplanted from Qwen/Qwen3-0.8B
 =============================================================================
     """)
 
     # 1. Lokalisasi File
     resolved_dir, found_map = locate_files(args.model_dir)
 
-    bin_path = found_map.get("wrai_x_06b_int8.bin", (None, 0))[0]
-    pt_path = found_map.get("wrai_x_06b_transplanted.pt", (None, 0))[0]
+    bin_path = found_map.get("wrai_x_08b_int8.bin", (None, 0))[0]
+    pt_path = found_map.get("wrai_x_08b_transplanted.pt", (None, 0))[0]
     vocab_path = found_map.get("wrai_x_vocab.bin", (None, 0))[0]
 
     # 2. Forensik Binary C INT8

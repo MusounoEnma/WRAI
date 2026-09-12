@@ -3,8 +3,8 @@ import torch.nn.functional as F
 import math
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", local_files_only=True)
-qwen = AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-0.6B", torch_dtype=torch.float32, device_map="cpu", local_files_only=True)
+tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.8B", local_files_only=True)
+qwen = AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-0.8B", torch_dtype=torch.float32, device_map="cpu", local_files_only=True)
 qwen.eval()
 
 prompt = "<|im_start|>user\nhalo apa kabar?<|im_end|>\n<|im_start|>assistant\n"

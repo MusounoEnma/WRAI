@@ -1,6 +1,6 @@
 """
 =============================================================================
-   🔬 WRAI-X (0.6B) RUNTIME CONSTANT-STATE PROOF & CONTEXT SCALING BENCHMARK
+   🔬 WRAI-X (0.8B) RUNTIME CONSTANT-STATE PROOF & CONTEXT SCALING BENCHMARK
 =============================================================================
  Alat pengujian empiris runtime untuk membuktikan secara saintifik:
  1. Bentuk tensor state (state_m, state_r, state_hdc) pada setiap layer
@@ -40,9 +40,9 @@ HEAD_DIM = 128
 WAVELET_LEVELS = 4
 
 DEFAULT_CHECKPOINT_PATHS = [
-    os.path.join("models x", "wrai_x_06b_transplanted.pt"),
-    "/content/drive/MyDrive/WRAI_X_06B/wrai_x_06b_transplanted.pt",
-    "wrai_x_06b_transplanted.pt"
+    os.path.join("models x", "wrai_x_08b_transplanted.pt"),
+    "/content/drive/MyDrive/WRAI_X_08B/wrai_x_08b_transplanted.pt",
+    "wrai_x_08b_transplanted.pt"
 ]
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

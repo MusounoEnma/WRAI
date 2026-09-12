@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-  🇬🇧 WRAI-X (0.6B) — ENGLISH BENCHMARK & LIVE CHAT STUDIO
+  🇬🇧 WRAI-X (0.8B) — ENGLISH BENCHMARK & LIVE CHAT STUDIO
 =============================================================================
  Architecture:
   - 100% Zero KV-Cache (Constant O(1) Memory Budget)
   - 28 Layers Dual-State (Memory Mt + Reasoning Rt)
   - 4-Level Haar Multiresolution Spectral Filter
-  - Native ChatML Tokenizer Alignment with Qwen-0.6B
+  - Native ChatML Tokenizer Alignment with Qwen-0.8B
 
  Features:
   - Comprehensive English Benchmark Suite (Science, Math, Code, Logic, Knowledge)
-  - Fast Checkpoint Loader (Loads wrai_x_06b_transplanted.pt in ~2 seconds)
+  - Fast Checkpoint Loader (Loads wrai_x_08b_transplanted.pt in ~2 seconds)
   - Interactive Live Chat Studio with Streaming Tokens
   - Clean Standard Decoding (No destructive penalties)
 =============================================================================
@@ -41,7 +41,7 @@ except ImportError:
 # -----------------------------------------------------------------------------
 # Configuration & Constants
 # -----------------------------------------------------------------------------
-SOURCE_MODEL_NAME = "Qwen/Qwen3-0.6B"
+SOURCE_MODEL_NAME = "Qwen/Qwen3-0.8B"
 
 HIDDEN_DIM = 1024
 FFN_DIM = 3072
@@ -51,13 +51,13 @@ HEAD_DIM = 128
 WAVELET_LEVELS = 4
 VOCAB_SIZE = 151936
 
-DRIVE_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_06B/wrai_x_06b_transplanted.pt"
-LOCAL_CHECKPOINT = "wrai_x_06b_transplanted.pt"
+DRIVE_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_08B/wrai_x_08b_transplanted.pt"
+LOCAL_CHECKPOINT = "wrai_x_08b_transplanted.pt"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # -----------------------------------------------------------------------------
-# 1. Architecture Modules (1-to-1 WRAI-X 0.6B)
+# 1. Architecture Modules (1-to-1 WRAI-X 0.8B)
 # -----------------------------------------------------------------------------
 
 class RMSNorm(nn.Module):
@@ -379,7 +379,7 @@ def generate_english_response(model, tok, user_query, max_tokens=150, temperatur
 
 def load_model(checkpoint_path=None):
     print("=" * 70)
-    print("   🚀 WRAI-X (0.6B) ZERO KV-CACHE ENGLISH BENCHMARK STUDIO")
+    print("   🚀 WRAI-X (0.8B) ZERO KV-CACHE ENGLISH BENCHMARK STUDIO")
     print("=" * 70)
     print(f"[*] Execution Device: {DEVICE}")
 
@@ -388,7 +388,7 @@ def load_model(checkpoint_path=None):
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
-    print("[*] Initializing WRAI-X 0.6B Architecture...")
+    print("[*] Initializing WRAI-X 0.8B Architecture...")
     model = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
 
     # Locate Checkpoint
@@ -397,7 +397,7 @@ def load_model(checkpoint_path=None):
         checkpoint_path,
         DRIVE_CHECKPOINT,
         LOCAL_CHECKPOINT,
-        os.path.join(".", "wrai_x_06b_transplanted.pt")
+        os.path.join(".", "wrai_x_08b_transplanted.pt")
     ]
     for c in candidates:
         if c and os.path.exists(c):
@@ -510,7 +510,7 @@ def run_english_benchmark(model, tok, temperature=0.1):
 
 def start_interactive_chat(model, tok):
     print("\n" + "=" * 70)
-    print("   💬 WRAI-X (0.6B) LIVE ENGLISH CHAT STUDIO")
+    print("   💬 WRAI-X (0.8B) LIVE ENGLISH CHAT STUDIO")
     print("   (Type your message and press Enter. Type 'exit' or 'quit' to stop)")
     print("=" * 70)
 
@@ -535,7 +535,7 @@ def start_interactive_chat(model, tok):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="WRAI-X 0.6B English Benchmark Studio")
+    parser = argparse.ArgumentParser(description="WRAI-X 0.8B English Benchmark Studio")
     parser.add_argument("--ckpt", type=str, default=None, help="Path to transplanted checkpoint (.pt)")
     parser.add_argument("--interactive", action="store_true", help="Start interactive live chat mode")
     parser.add_argument("--temp", type=float, default=0.1, help="Sampling temperature (default: 0.1)")

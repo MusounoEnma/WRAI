@@ -6,16 +6,16 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, "final")
-from test_wrai_x_06b_english import WRAIX06BModel, sample_token
+from test_wrai_x_08b_english import WRAIX06BModel, sample_token
 
 print("=" * 70)
 print("[*] Memuat Tokenizer Qwen...")
-tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", trust_remote_code=True)
+tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.8B", trust_remote_code=True)
 
-print("[*] Menginisialisasi Model WRAI-X 0.6B...")
+print("[*] Menginisialisasi Model WRAI-X 0.8B...")
 model = WRAIX06BModel(vocab_size=151936, num_layers=28, hidden_dim=1024, ffn_dim=3072)
 
-ckpt_path = "models x/wrai_x_06b_transplanted.pt"
+ckpt_path = "models x/wrai_x_08b_transplanted.pt"
 print(f"[*] Memuat bobot dari {ckpt_path}...")
 sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)
 model.load_state_dict(sd, strict=False)

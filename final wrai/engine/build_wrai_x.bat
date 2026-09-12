@@ -3,7 +3,7 @@ set PATH=%~dp0..\..\tools\w64devkit\bin;%PATH%
 cd /d "%~dp0"
 
 echo =================================================================
-echo    COMPILING WRAI-X (0.6B) NATIVE C ENGINE
+echo    COMPILING WRAI-X (0.8B) NATIVE C ENGINE
 echo =================================================================
 echo [*] Compiler: GCC MinGW-w64 (AVX 1.0 SIMD + OpenMP)
 echo [*] Optimization: -O3 -mavx -msse4.2 -fopenmp

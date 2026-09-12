@@ -1,4 +1,4 @@
-# 🌊 WRAI-X (0.6B): Wavelet Retention AI Engine
+# 🌊 WRAI-X (0.8B): Wavelet Retention AI Engine
 > **A Transparent, Zero KV-Cache Recurrent Wavelet Architecture Transplanted from Qwen2.5-0.5B with a Pure Native C Inference Engine**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -11,7 +11,7 @@
 
 ## 📌 Pendahuluan & Filosofi Desain
 
-Proyek **WRAI-X (0.6B)** lahir dari pendekatan rekayasa yang pragmatis, transparan, dan berlandaskan teori yang mapan: **kami tidak mengklaim menemukan roda baru dari nol**, melainkan **menggabungkan dan mentransplantasikan teknik-teknik komputasi mutakhir yang terbukti secara matematis** ke dalam satu sistem inferensi CPU yang sangat efisien dan berdaya rendah.
+Proyek **WRAI-X (0.8B)** lahir dari pendekatan rekayasa yang pragmatis, transparan, dan berlandaskan teori yang mapan: **kami tidak mengklaim menemukan roda baru dari nol**, melainkan **menggabungkan dan mentransplantasikan teknik-teknik komputasi mutakhir yang terbukti secara matematis** ke dalam satu sistem inferensi CPU yang sangat efisien dan berdaya rendah.
 
 Transformer konvensional memiliki kelemahan mendasar: **KV-Cache yang membengkak secara linear $O(T)$**, yang menyedot gigabyte memori RAM ketika percakapan memanjang. 
 
@@ -71,7 +71,7 @@ Klaim performa WRAI-X bukan sekadar teori atau simulasi string. Seluruh metrik d
 ### 1. Bukti Memory Mapping & Transfer Fisik Disk ke RAM
 | Parameter Audit Kernel OS | Nilai Riil Hardware | Keterangan Ilmiah |
 | :--- | :--- | :--- |
-| **Model Binary on Disk** | `wrai_x_06b_int8.bin` | **1.422.927.244 bytes** (~**1.35 GB**) |
+| **Model Binary on Disk** | `wrai_x_08b_int8.bin` | **1.422.927.244 bytes** (~**1.35 GB**) |
 | **Windows Virtual Base** | `0x0000023c80000000` | Alamat memori virtual dialokasikan oleh kernel Windows |
 | **Physical Working Set RAM** | **912.90 MB** | Memori fisik chip RAM DDR yang terisi bobot aktif |
 | **Hardware Page Faults** | **234.259 halaman** | MMU CPU memicu interupsi fisik transfer blok 4 KB dari SSD ke RAM |
@@ -102,7 +102,7 @@ Pengukuran konsumsi RAM proses dilakukan secara kontinu saat panjang urutan toke
 
 ```
 WRAI/
-├── final wrai/                         # 🎯 RILIS FINAL WRAI-X (0.6B)
+├── final wrai/                         # 🎯 RILIS FINAL WRAI-X (0.8B)
 │   ├── run_wrai_x.bat                  # Launcher 1-klik untuk Windows
 │   ├── README.md                       # Panduan teknis rilis final
 │   │
@@ -120,10 +120,10 @@ WRAI/
 │   │   └── audit/                      # Alat uji forensik kernel OS & memory scaling
 │   │
 │   └── training/                       # Source Code Training Transplantasi (PyTorch)
-│       ├── colab_train_wrai_x_06b_transplant.py # Pipeline transplantasi lengkap
-│       ├── WRAI_X_06B_COLAB.ipynb      # Notebook interaktif Google Colab
-│       ├── quantize_wrai_x_06b_colab.py# Konversi PyTorch FP32 -> INT8 Binary C
-│       └── poc_wrai_x_06b.py           # Validasi teoritis PyTorch
+│       ├── colab_train_wrai_x_08b_transplant.py # Pipeline transplantasi lengkap
+│       ├── WRAI_X_08B_COLAB.ipynb      # Notebook interaktif Google Colab
+│       ├── quantize_wrai_x_08b_colab.py# Konversi PyTorch FP32 -> INT8 Binary C
+│       └── poc_wrai_x_08b.py           # Validasi teoritis PyTorch
 │
 ├── LICENSE                             # Lisensi Resmi Apache 2.0
 └── .gitignore                          # Konfigurasi proteksi batas upload GitHub
@@ -140,10 +140,10 @@ cd WRAI/"final wrai"
 ```
 
 ### 2. Download Bobot Model (1.35 GB INT8)
-Karena file bobot INT8 (`wrai_x_06b_int8.bin`) berukuran 1.35 GB (melebihi batas 100 MB GitHub), unduh bobot dari Hugging Face Model Hub:
+Karena file bobot INT8 (`wrai_x_08b_int8.bin`) berukuran 1.35 GB (melebihi batas 100 MB GitHub), unduh bobot dari Hugging Face Model Hub:
 ```bash
 cd qwen
-python download_weights.py --repo YourUsername/wrai-x-06b
+python download_weights.py --repo YourUsername/wrai-x-08b
 cd ..
 ```
 

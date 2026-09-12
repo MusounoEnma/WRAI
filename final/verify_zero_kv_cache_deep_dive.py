@@ -1,6 +1,6 @@
 """
 =============================================================================
-   🔬 WRAI-X (0.6B) DEEP DIVE AUDIT: ZERO KV-CACHE & RETENTION VERIFIER
+   🔬 WRAI-X (0.8B) DEEP DIVE AUDIT: ZERO KV-CACHE & RETENTION VERIFIER
 =============================================================================
  Skrip audit forensik mendalam untuk memverifikasi secara langsung di Colab:
  1. Bedah Arsitektur: Bukti hilangnya modul Self-Attention & KV-Cache
@@ -31,7 +31,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # -----------------------------------------------------------------------------
-# Konstanta WRAI-X 0.6B
+# Konstanta WRAI-X 0.8B
 # -----------------------------------------------------------------------------
 VOCAB_SIZE = 151936
 HIDDEN_DIM = 1024
@@ -42,8 +42,8 @@ HEAD_DIM = 128
 WAVELET_LEVELS = 4
 MAX_SEQ_LEN = 512
 
-DEFAULT_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_06B/wrai_x_06b_transplanted.pt"
-FALLBACK_CHECKPOINT = "wrai_x_06b_transplanted.pt"
+DEFAULT_CHECKPOINT = "/content/drive/MyDrive/WRAI_X_08B/wrai_x_08b_transplanted.pt"
+FALLBACK_CHECKPOINT = "wrai_x_08b_transplanted.pt"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -347,7 +347,7 @@ def run_deep_dive(ckpt_path=None):
     print(" [TEST 2] BEDAH ANATOMI TENSOR RECURRENT STATE (M_t & R_t)")
     print("-" * 75)
 
-    print(f"[*] Menginisialisasi Model WRAI-X 0.6B pada device: {DEVICE}...", flush=True)
+    print(f"[*] Menginisialisasi Model WRAI-X 0.8B pada device: {DEVICE}...", flush=True)
     active_layers = NUM_LAYERS if (sd is not None or DEVICE.type == "cuda") else 2
     active_vocab = VOCAB_SIZE if (sd is not None or DEVICE.type == "cuda") else 1000
     model = WRAIX06BModel(vocab_size=active_vocab, num_layers=active_layers).to(DEVICE).to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
@@ -493,7 +493,7 @@ def run_deep_dive(ckpt_path=None):
   1. KV-Cache fisik telah HILANG 100%. Tidak ada tensor dengan dimensi [B, H, T, D].
   2. Attention Softmax digantikan sepenuhnya oleh Multi-Head Retention Dual-State (M_t, R_t).
   3. Memori konstan O(1) persis 29.42 MB pada token ke-1, ke-50, ke-10,000, maupun ke-100,000!
-  4. Model WRAI-X 0.6B pada Google Drive Anda SAH berstatus 'Zero KV-Cache Recurrent Model'.
+  4. Model WRAI-X 0.8B pada Google Drive Anda SAH berstatus 'Zero KV-Cache Recurrent Model'.
     """)
 
 if __name__ == "__main__":

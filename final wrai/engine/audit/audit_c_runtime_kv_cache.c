@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     printf(" [*] State Buffer     : Dual Recurrent Retention Matrix (Mt / Rt) + HDC Scratchpad    \n");
     printf("========================================================================================\n\n");
 
-    const char* model_path = "models x/wrai_x_06b_int8.bin";
+    const char* model_path = "models x/wrai_x_08b_int8.bin";
     const char* vocab_path = "models x/wrai_x_vocab.bin";
 
     proc_mem_t mem_init = get_process_memory();

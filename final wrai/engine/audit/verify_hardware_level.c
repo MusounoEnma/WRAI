@@ -30,7 +30,7 @@ int main() {
     printf("     - Process ID (PID)      : %lu\n", (unsigned long)pid);
     printf("     - Arsitektur CPU Target : x86_64 AVX 1.0 SIMD + OpenMP Multithreading\n\n");
 
-    const char* model_path = "models x\\wrai_x_06b_int8.bin";
+    const char* model_path = "models x\\wrai_x_08b_int8.bin";
     const char* vocab_path = "models x\\wrai_x_vocab.bin";
 
     printf(" [2] AUDIT KERNEL FILE HANDLE & VIRTUAL MEMORY MAP (mmap):\n");

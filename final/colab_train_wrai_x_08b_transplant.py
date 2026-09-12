@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ================================================================================
- 🧠 WRAI-X (0.6B) 1-CLICK COLAB ZERO-CONTAMINATION TRANSPLANT PIPELINE (V17.2)
+ 🧠 WRAI-X (0.8B) 1-CLICK COLAB ZERO-CONTAMINATION TRANSPLANT PIPELINE (V17.2)
 ================================================================================
  Fitur Baru (V17.2 - Authentic Qwen3 Reasoning & Slim Checkpoint):
   1. 100% SIKLUS NALAR QWEN3: Mengadopsi format resmi <think>...</think>
@@ -37,7 +37,7 @@ try:
     if not os.path.exists('/content/drive/MyDrive'):
         print("[*] Menghubungkan Google Drive untuk menyimpan model secara permanen...")
         drive.mount('/content/drive')
-    COLAB_SAVE_DIR = "/content/drive/MyDrive/WRAI_X_06B"
+    COLAB_SAVE_DIR = "/content/drive/MyDrive/WRAI_X_08B"
 except ImportError:
     COLAB_SAVE_DIR = "."
 
@@ -53,13 +53,13 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.optimization import Adafactor
 
 # -----------------------------------------------------------------------------
-# 1. Konfigurasi Arsitektur WRAI-X (0.6B)
+# 1. Konfigurasi Arsitektur WRAI-X (0.8B)
 # -----------------------------------------------------------------------------
-SOURCE_MODEL_NAME = "Qwen/Qwen3-0.6B"
+SOURCE_MODEL_NAME = "Qwen/Qwen3-0.8B"
 
 HIDDEN_DIM = 1024          # D = 1024
 FFN_DIM = 3072             # SwiGLU Intermediate Size
-NUM_LAYERS = 28            # 28 Layers (1-to-1 dengan Qwen 0.6B)
+NUM_LAYERS = 28            # 28 Layers (1-to-1 dengan Qwen 0.8B)
 NUM_HEADS = 16             # 16 Retention Heads
 HEAD_DIM = 128             # 16 x 128 = 2048
 WAVELET_LEVELS = 4         # 4-Level Haar DWT
@@ -425,7 +425,7 @@ class WRAIX06BModel(nn.Module):
         return logits, new_states
 
 # -----------------------------------------------------------------------------
-# 3. Mesin Cangkok Bedah 1-to-1 dari Qwen 0.6B ke WRAI-X
+# 3. Mesin Cangkok Bedah 1-to-1 dari Qwen 0.8B ke WRAI-X
 # -----------------------------------------------------------------------------
 
 def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODEL_NAME, return_teacher=False):
@@ -520,7 +520,7 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     frozen_params = unique_params - trainable_params
 
     print(f"[5/5] STATUS GOBOT TRANSPLANTASI SELESAI ({time.time()-t0:.2f}s):")
-    print(f"  - Total Parameter Model Murni: {unique_params:,} ({unique_params/1e6:.1f}M) -> 100% PERSIS 0.6B!")
+    print(f"  - Total Parameter Model Murni: {unique_params:,} ({unique_params/1e6:.1f}M) -> 100% PERSIS 0.8B!")
     print(f"  - Parameter Terkunci (FROZEN): {frozen_params:,} ({frozen_params/1e6:.1f}M / {frozen_params/unique_params*100:.2f}%)")
     print(f"  - Parameter Dikalibrasi (WRAI): {trainable_params:,} ({trainable_params/1e3:.1f}K / {trainable_params/unique_params*100:.4f}%)")
     print("[OK GUARANTEE] Pengetahuan Qwen 100% AMAN DARI KONTAMINASI DATASET!\n")
@@ -583,10 +583,10 @@ def build_qwen3_reasoning_dataset():
     identities = [
         ("Siapa kamu?",
          "Identity query.",
-         "Saya adalah WRAI-X (0.6B), model kecerdasan buatan generasi baru berbasis arsitektur Multi-Head Retention dan Dual-State Reasoning dengan filter spektral Haar DWT yang berjalan efisien tanpa KV-Cache."),
+         "Saya adalah WRAI-X (0.8B), model kecerdasan buatan generasi baru berbasis arsitektur Multi-Head Retention dan Dual-State Reasoning dengan filter spektral Haar DWT yang berjalan efisien tanpa KV-Cache."),
         ("Who are you and how does the WRAI-X architecture achieve Zero KV-Cache?",
          "Architecture question in English: Explain WRAI-X Zero KV-Cache using Dual-State retention and constant O(1) memory budget.",
-         "I am WRAI-X (0.6B). I achieve Zero KV-Cache by replacing standard quadratic attention with Dual-State Multi-Head Retention (Memory Mt and Reasoning Rt). Instead of storing every previous key and value token in a growing KV-Cache, WRAI-X compresses context into a fixed-size recurrent state matrix that updates in constant O(1) memory per token."),
+         "I am WRAI-X (0.8B). I achieve Zero KV-Cache by replacing standard quadratic attention with Dual-State Multi-Head Retention (Memory Mt and Reasoning Rt). Instead of storing every previous key and value token in a growing KV-Cache, WRAI-X compresses context into a fixed-size recurrent state matrix that updates in constant O(1) memory per token."),
         ("Jelaskan perbedaan WRAI-X dengan Transformer biasa.",
          "Explain difference between WRAI-X linear retention and standard Transformer quadratic attention.",
          "Perbedaan mendasar terletak pada konsumsi memori: Transformer standar membutuhkan KV-Cache yang membesar seiring panjang teks (O(N) memori), sedangkan WRAI-X menggunakan arsitektur Linear Retention Dual-State yang mempertahankan memori konstan O(1). WRAI-X tidak memerlukan KV-Cache sama sekali sehingga sangat hemat RAM.")
@@ -813,7 +813,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     tok = AutoTokenizer.from_pretrained(SOURCE_MODEL_NAME, trust_remote_code=True)
     if tok.pad_token is None: tok.pad_token = tok.eos_token
 
-    print("[*] Menginisialisasi Arsitektur WRAI-X 0.6B...")
+    print("[*] Menginisialisasi Arsitektur WRAI-X 0.8B...")
     model = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
     
     use_teacher = torch.cuda.is_available() and (torch.cuda.get_device_properties(0).total_memory > 8 * 1e9)
@@ -990,7 +990,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     print(f"\n[OK SUCCESS] Kalibrasi WRAI-X Selesai dalam {time.time()-t_start:.2f} detik! Final Loss: {final_step_loss:.4f}\n")
 
     # Merge LoRA kembali ke bobot dasar secara in-place
-    print("[*] Menggabungkan LoRA in-place ke bobot dasar model murni 0.6B...")
+    print("[*] Menggabungkan LoRA in-place ke bobot dasar model murni 0.8B...")
     for l in range(NUM_LAYERS):
         layer = model.layers[l]
         layer.w_q = layer.w_q.merge_and_restore()
@@ -1014,7 +1014,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     # 6. Simpan Checkpoint Ramping Bfloat16 (~1.19 GB, Tanpa Duplikasi)
     # -------------------------------------------------------------------------
     os.makedirs(target_dir, exist_ok=True)
-    save_path = os.path.join(target_dir, "wrai_x_06b_transplanted.pt")
+    save_path = os.path.join(target_dir, "wrai_x_08b_transplanted.pt")
     
     print("[*] Mengemas Checkpoint PyTorch dalam format BFLOAT16 (Tanpa Duplikasi)...")
     sd_raw = model.state_dict()
@@ -1103,7 +1103,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
             print()
 
     # Ekspor Checkpoint INT8 Binary C
-    int8_bin_path = os.path.join(target_dir, "wrai_x_06b_int8.bin")
+    int8_bin_path = os.path.join(target_dir, "wrai_x_08b_int8.bin")
     pack_wrai_x_checkpoint(model.state_dict(), int8_bin_path, final_loss=final_step_loss)
 
     # Ekspor Tokenizer Vocabulary

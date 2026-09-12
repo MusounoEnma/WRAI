@@ -1,5 +1,5 @@
 """
-WRAI-X (0.6B) Weight Downloader & Setup Helper
+WRAI-X (0.8B) Weight Downloader & Setup Helper
 Host weights on Hugging Face Model Hub and download automatically to this folder.
 """
 
@@ -7,10 +7,10 @@ import os
 import sys
 import argparse
 
-DEFAULT_REPO = "YourUsername/wrai-x-06b"  # Ganti dengan Hugging Face repository Anda
+DEFAULT_REPO = "YourUsername/wrai-x-08b"  # Ganti dengan Hugging Face repository Anda
 FILES_TO_DOWNLOAD = [
-    "wrai_x_06b_int8.bin",
-    "wrai_x_06b_transplanted.pt"
+    "wrai_x_08b_int8.bin",
+    "wrai_x_08b_transplanted.pt"
 ]
 
 def main():
@@ -20,7 +20,7 @@ def main():
 
     target_dir = os.path.dirname(os.path.abspath(__file__))
     print("=" * 65)
-    print(" 🌊 WRAI-X (0.6B) WEIGHT DOWNLOAD HELPER")
+    print(" 🌊 WRAI-X (0.8B) WEIGHT DOWNLOAD HELPER")
     print("=" * 65)
     print(f" Target Directory: {target_dir}")
     print(f" Source Repo     : https://huggingface.co/{args.repo}")

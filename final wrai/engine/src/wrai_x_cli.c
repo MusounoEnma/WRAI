@@ -21,7 +21,7 @@ static void print_banner(const wrai_x_model_t* model) {
     printf("=================================================================\n");
     printf(" [*] Arsitektur     : Dual-State Retention (Mt/Rt) + 4-Level Haar DWT\n");
     printf(" [*] Dimensi Laten  : D = 1024 (2^10), FFN = 3072, 28 Layers\n");
-    printf(" [*] Parameter      : ~831 Juta (Qwen 0.8B Frozen Brain + WRAI-X Adapters)\n");
+    printf(" [*] Parameter      : ~831 Juta (Qwen 3 0.6B Frozen Brain + WRAI-X Adapters -> 0.8B)\n");
     printf(" [*] Kuantisasi     : INT8 Symmetric Row-wise\n");
     printf(" [*] Hardware Target: CPU (AVX 1.0 SIMD + OpenMP)\n");
     printf(" [*] Memory Buffer  : O(1) Constant (~14.5 MB State Buffer, 0%% KV-Cache)\n");

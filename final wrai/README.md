@@ -1,5 +1,5 @@
 # 🌊 WRAI-X (0.8B): Wavelet Retention AI Engine
-> **A Transparent, Zero KV-Cache Recurrent Wavelet Architecture Transplanted from Qwen2.5-0.5B with a Pure Native C Inference Engine**
+> **A Transparent, Zero KV-Cache Recurrent Wavelet Architecture Transplanted from Qwen3-0.6B with a Pure Native C Inference Engine**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![C Standard](https://img.shields.io/badge/C-C99%20Pure%20Native-00599C?logo=c)](final%20wrai/engine/src/wrai_x_engine.c)
@@ -16,7 +16,7 @@ Proyek **WRAI-X (0.8B)** lahir dari pendekatan rekayasa yang pragmatis, transpar
 Transformer konvensional memiliki kelemahan mendasar: **KV-Cache yang membengkak secara linear $O(T)$**, yang menyedot gigabyte memori RAM ketika percakapan memanjang. 
 
 Untuk memecahkan masalah tersebut secara tuntas tanpa melatih model miliaran parameter dari nol (yang memakan biaya ratusan ribu dolar), WRAI-X melakukan **transplantasi arsitektur (Architectural Transmutation)**:
-1. **Mempertahankan Otak Pre-trained**: Memanfaatkan Feed-Forward Network (FFN), SwiGLU, RMSNorm, dan Unembedding Head dari **Qwen2.5-0.5B** yang dibekukan (*frozen*).
+1. **Mempertahankan Otak Pre-trained**: Memanfaatkan Feed-Forward Network (FFN), SwiGLU, RMSNorm, dan Unembedding Head dari **Qwen3-0.6B** yang dibekukan (*frozen*).
 2. **Mengganti Kuadratik Attention dengan Dual Retention**: Mengganti Multi-Head Attention dengan **Dual-State Recurrent Retention ($M_t / R_t$)** yang mengunci memori dalam matriks berdimensi tetap ($128 \times 128$) — **Zero KV-Cache ($O(1)$ Memory)**.
 3. **Penyaringan Spektral 4-Level Haar Wavelet (DWT)**: Mengurai sinyal representasi laten menjadi komponen frekuensi rendah (konteks global) dan frekuensi tinggi (sintaksis lokal).
 4. **Pure Native C Inference Engine**: Engine mandiri tanpa Python, tanpa PyTorch, dan tanpa runtime berat, menggunakan *zero-heap virtual memory-mapping* (`mmap`) dan AVX SIMD 256-bit.
@@ -161,7 +161,7 @@ run_wrai_x.bat
 ## 🗺️ Peta Jalan & Pengembangan Berkelanjutan (Roadmap)
 
 WRAI-X (0.8B) adalah **fase fondasi awal** dari riset arsitektur WRAI. Arsitektur ini sengaja dirancang modular dan terbuka untuk ekspansi ke model-model open-weights berikutnya:
-- [x] **v0.8B Foundation (Rilis Saat Ini)**: Validasi empiris transmutasi arsitektur Qwen2.5-0.5B dengan O(1) Zero KV-Cache.
+- [x] **v0.8B Foundation (Rilis Saat Ini)**: Validasi empiris transmutasi arsitektur Qwen3-0.6B dengan O(1) Zero KV-Cache.
 - [ ] **Skalabilitas 1.5B & 3B**: Mengaplikasikan pipeline transplantasi ke model berukuran lebih besar (seperti Qwen2.5-1.5B dan Meta Llama-3.2) untuk kapabilitas nalar logika yang lebih tajam.
 - [ ] **Universal Multi-Model Engine**: Deteksi dimensi tensor secara dinamis di C Engine (satu binary `.exe` untuk menjalankan model biner WRAI mana pun).
 - [ ] **Tuning Konteks Panjang**: Melanjutkan proses distilasi dan tuning dataset percakapan untuk memperhalus kelancaran tata bahasa.
@@ -179,7 +179,7 @@ Sebagai komitmen keterbukaan ilmiah:
 ## 🙏 Apresiasi & Landasan Teori (Acknowledgements)
 
 Proyek ini dibangun di atas pondasi riset luar biasa dari komunitas kecerdasan buatan dunia:
-1. **Tim Qwen (Alibaba Cloud)**: Atas rilis model dasar [Qwen2.5-0.5B](https://huggingface.co/Qwen/Qwen2.5-0.5B) yang luar biasa di bawah lisensi Apache 2.0, yang menyediakan representasi FFN, embedding, dan tokenisasi berkualitas tinggi.
+1. **Tim Qwen (Alibaba Cloud)**: Atas rilis model dasar [Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B) yang luar biasa di bawah lisensi Apache 2.0, yang menyediakan representasi FFN, embedding, dan tokenisasi berkualitas tinggi.
 2. **Microsoft Research (RetNet Authors - Sun et al., 2023)**: Atas makalah seminal *"Retentive Network: A Successor to Transformer for Large Language Models"*, yang menjadi landasan matematis mekanisme retensi rekursif berdimensi konstan $O(1)$.
 3. **Alfréd Haar (1909) & Komunitas Signal Processing**: Atas formulasi Discrete Haar Wavelet Transform (DWT) yang memungkinkan pemisahan fitur frekuensi multi-resolusi secara elegan tanpa komputasi rumit.
 4. **Pentti Kanerva & Komunitas Hyperdimensional Computing (HDC)**: Atas prinsip representasi vektor asosiatif berdimensi tinggi.

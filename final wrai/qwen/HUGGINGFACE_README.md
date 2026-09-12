@@ -13,7 +13,7 @@ tags:
 - architectural-transplant
 - cpu-inference
 - int8
-base_model: Qwen/Qwen2.5-0.5B
+base_model: Qwen/Qwen3-0.6B
 pipeline_tag: text-generation
 library_name: c-native
 ---
@@ -24,7 +24,7 @@ library_name: c-native
 
 * **Hugging Face Model Hub:** [https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)
 * **GitHub Repository:** [https://github.com/MusounoEnma/WRAI](https://github.com/MusounoEnma/WRAI)
-* **Base Pre-trained Brain:** `Qwen/Qwen2.5-0.5B` (100% Frozen FFN, RMSNorm, and Embeddings)
+* **Base Pre-trained Brain:** `Qwen/Qwen3-0.6B` (100% Frozen FFN, RMSNorm, and Embeddings)
 * **Total Measured Parameters:** **831,268,848 Parameters** (~0.83B)
 * **Available Artifact Formats:**
   * `wrai_x_08b_int8.bin` (1.35 GB) — *INT8 symmetric row-wise quantized binary for zero-heap C engine*
@@ -37,7 +37,7 @@ library_name: c-native
 Standard Transformer architectures suffer from a fundamental memory scaling bottleneck: the **Linear KV-Cache Growth ($O(T)$)**, which consumes gigabytes of VRAM/RAM as sequence lengths increase.
 
 Rather than training a billion-parameter model from scratch at massive computational expense, the WRAI-X project explores **Architectural Transmutation (Transplantation)**:
-1. **Leveraging Pre-Trained Knowledge**: We preserve and freeze the pre-trained SwiGLU FFN knowledge layers, RMSNorms, and embeddings from **Qwen2.5-0.5B**.
+1. **Leveraging Pre-Trained Knowledge**: We preserve and freeze the pre-trained SwiGLU FFN knowledge layers, RMSNorms, and embeddings from **Qwen3-0.6B**.
 2. **Replacing Quadratic Attention with Dual-State Retention ($M_t / R_t$)**: Inspired by *Microsoft Research's RetNet*, sequence context is compressed into fixed-size state matrices ($128 \times 128$) updated in-place recursively — achieving **Zero KV-Cache ($O(1)$ constant memory)**.
 3. **4-Level 1D Discrete Haar Wavelet Transform (DWT)**: Decomposes latent representation signals into low-frequency approximations (global semantics) and high-frequency details (local syntax).
 4. **Pure Native C Inference Engine**: Completely eliminates Python and heavy runtimes. Powered by Win32/POSIX virtual memory-mapping (`mmap`) and 256-bit AVX SIMD execution.
@@ -98,7 +98,7 @@ The full transplant training script, verification suite, and Google Colab notebo
 ## 🗺️ Continuous Evolution & Roadmap
 
 WRAI-X (0.8B) represents the **Foundation Phase** of this research. The architecture is actively designed for modular evolution:
-- [x] **v0.8B Foundation (Active)**: Core Proof-of-Concept on Qwen2.5-0.5B backbone with verified $O(1)$ Zero KV-Cache.
+- [x] **v0.8B Foundation (Active)**: Core Proof-of-Concept on Qwen3-0.6B backbone with verified $O(1)$ Zero KV-Cache.
 - [ ] **Scaling to 1.5B & 3B**: Expanding the transplant pipeline to Qwen2.5-1.5B and Meta Llama-3.2 for enhanced logic and coding.
 - [ ] **Universal Multi-Model Engine**: Dynamic tensor-dimension auto-discovery in C (load any WRAI model binary seamlessly).
 - [ ] **Extended Stream Tuning**: Continued distillation on conversational datasets for enhanced natural fluency.
@@ -108,7 +108,7 @@ WRAI-X (0.8B) represents the **Foundation Phase** of this research. The architec
 ## 🙏 Theoretical Foundations & Acknowledgements
 
 This exploratory work stands on the shoulders of remarkable contributions from the global AI research community:
-1. **Qwen Team (Alibaba Cloud)**: For releasing the outstanding [Qwen2.5-0.5B](https://huggingface.co/Qwen/Qwen2.5-0.5B) foundation model under the Apache 2.0 license, providing robust language embeddings and representations.
+1. **Qwen Team (Alibaba Cloud)**: For releasing the outstanding [Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B) foundation model under the Apache 2.0 license, providing robust language embeddings and representations.
 2. **Microsoft Research (RetNet - Sun et al., 2023)**: For the seminal paper *"Retentive Network: A Successor to Transformer for Large Language Models"*, which mathematically formulated recursive linear retention and GroupNorm.
 3. **Alfréd Haar (1909) & The Signal Processing Community**: For the foundational Discrete Haar Wavelet Transform (DWT), enabling multi-resolution frequency decomposition.
 4. **Pentti Kanerva & The Hyperdimensional Computing (HDC) Community**: For foundational concepts in high-dimensional associative vector representations.

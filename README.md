@@ -64,6 +64,12 @@ To prevent semantic drift over long sequences, token representations pass throug
 * **High-Frequency Band ($H$)**: Captures local syntax, micro-features, code tokens, and punctuation.
 * **Adaptive Gating**: Smoothly balances global context versus fine-grained syntax before entering the Feed-Forward Network.
 
+### 3. Hyperdimensional Computing (HDC) Associative Scratchpad
+For Chain-of-Thought (`<think> ... </think>`) step-by-step reasoning, WRAI introduces a Vector Symbolic Architecture (VSA) scratchpad:
+* **Hadamard Binding ($\odot$)**: Intermediate reasoning keys and values are bound via element-wise product: $\mathbf{b}_t = \tanh(W_{hk}\mathbf{r}_t) \odot \tanh(W_{hv}\mathbf{r}_t)$.
+* **Holographic Superposition**: Bound vectors are superimposed into a single, fixed 1,024-dimensional memory vector $\mathbf{S}_{hdc, t} = 0.95 \cdot \mathbf{S}_{hdc, t-1} + \mathbf{b}_t$.
+* **Resonance Unbinding**: Probing $\mathbf{S}_{hdc}$ with current key queries unbinds associative context on the fly, providing working memory without maintaining any token-level KV-cache!
+
 ---
 
 ## 📁 Repository Architecture

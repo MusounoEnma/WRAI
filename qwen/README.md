@@ -37,6 +37,51 @@ While the base pre-trained backbone is Qwen3-0.6B, the integration of dual linea
 
 ---
 
+## 🧠 Hyperdimensional Computing (HDC) Associative Scratchpad
+
+One of the most unique innovations in WRAI-X is the **HDC Associative Scratchpad**, drawing inspiration from Pentti Kanerva's *Vector Symbolic Architectures (VSA)* and *Hyperdimensional Computing*:
+
+```
+ Reasoning Vector r_t [1024]
+        │
+        ├───> Key Projection:   k_t = tanh(W_hk · r_t)
+        ├───> Value Projection: v_t = tanh(W_hv · r_t)
+        │
+        ▼
+  Hadamard Binding:     b_t = k_t ⊙ v_t
+        │
+        ▼
+  Recurrent Superposition: S_hdc(t) = γ_hdc · S_hdc(t-1) + b_t   [γ_hdc = 0.95]
+        │
+        ▼
+  Resonance Unbinding:  res_t = S_hdc(t) ⊙ k_t
+        │
+        ▼
+  Adaptive Gate:        g_hdc = σ(W_gate · [r_t ; res_t] + b)
+        │
+        ▼
+  Fused Reasoning:      r_t_hdc = r_t + (res_t ⊙ g_hdc)
+```
+
+### 1. Vector Symbolic Binding ($\odot$)
+Conventional attention attempts to match token keys with all historical queries explicitly ($O(T^2)$). Instead, HDC maps concepts into high-dimensional space (1,024 dimensions) and binds keys and values using the **Hadamard product (element-wise multiplication $\odot$)**:
+$$\mathbf{k}_t = \tanh(W_{hk} \cdot \mathbf{r}_t), \quad \mathbf{v}_t = \tanh(W_{hv} \cdot \mathbf{r}_t)$$
+$$\mathbf{b}_t = \mathbf{k}_t \odot \mathbf{v}_t$$
+
+### 2. Holographic Superposition Working Memory
+Because high-dimensional pseudo-orthogonal vectors can be superimposed without catastrophic interference, historical reasoning steps are stored in a single, fixed **1,024-dimensional vector** $\mathbf{S}_{hdc}$:
+$$\mathbf{S}_{hdc, t} = \gamma_{hdc} \cdot \mathbf{S}_{hdc, t-1} + \mathbf{b}_t \quad (\gamma_{hdc} = 0.95)$$
+
+### 3. Resonance Unbinding & CoT Thinking Activation
+When the model requires contextual recall during `<think> ... </think>` Chain-of-Thought generation, it probes the holographic state with its current key vector to unbind the associative memory:
+$$\mathbf{res}_t = \mathbf{S}_{hdc, t} \odot \mathbf{k}_t$$
+$$\mathbf{g}_{hdc} = \sigma\left(W_{gate\_hdc} [\mathbf{r}_t ; \mathbf{res}_t] + b_{hdc}\right)$$
+$$\mathbf{r}_{t, hdc} = \mathbf{r}_t + (\mathbf{res}_t \odot \mathbf{g}_{hdc})$$
+
+This provides WRAI-X with a persistent associative "scratchpad" for step-by-step reasoning—**without storing a single key-value cache vector in RAM**.
+
+---
+
 ## 🔬 OS Kernel & Hardware Memory Audits
 
 The forensic metrics below were captured directly via **Windows NT Kernel Memory APIs (`psapi.h`)** while running the compiled release binary `wrai_x.exe` on physical x86_64 CPU hardware:

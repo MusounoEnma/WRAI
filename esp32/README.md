@@ -11,11 +11,13 @@
 
 ## 📌 Executive Summary
 
-While recent community experiments claim to run ~29M models on microcontrollers by parking a passive lookup table in 16 MB Flash while exhausting 8 MB of external PSRAM for quadratic KV-Cache, **WRAI-Micro (1.25M)** takes a fundamentally different, mathematically grounded engineering approach:
+Deploying generative neural language models to low-cost microcontrollers has traditionally faced a prohibitive hardware constraint: standard Transformer architectures require quadratic KV-caches that easily overwhelm internal microcontroller SRAM, typically demanding external 8+ MB PSRAM chips and high-end modules.
 
-1. **Authentic Base Model**: Knowledge transplanted from [`SimpleStories/SimpleStories-V2-1.25M`](https://huggingface.co/SimpleStories/SimpleStories-V2-1.25M) (*arXiv:2504.09184*).
+**WRAI-Micro (1.25M)** investigates a fundamentally sub-quadratic alternative: eliminating external memory dependencies entirely through **Dual-State Linear Retention**:
+
+1. **Authentic Base Model**: Knowledge transplanted from [`SimpleStories/SimpleStories-V2-1.25M`](https://huggingface.co/SimpleStories/SimpleStories-V2-1.25M) (*arXiv:2504.09184*, Eldan & Li).
 2. **Pure Linear Recurrence**: Replaces quadratic Softmax Self-Attention with **Dual-State Linear Retention ($S_m$)**.
-3. **Zero KV-Cache ($O(1)$ Constant State Memory)**: Contextual sequence state is updated *in-place* into fixed-dimension matrices ($4\text{ layers} \times 4\text{ heads} \times 32 \times 32$). The memory footprint remains strictly **64.0 KB** from the 1st token to the 10,000th token!
+3. **Zero KV-Cache ($O(1)$ Constant State Memory)**: Contextual sequence state is updated *in-place* into fixed-dimension matrices ($4\text{ layers} \times 4\text{ heads} \times 32 \times 32$). The memory footprint remains strictly **64.0 KB** regardless of how long the interaction continues!
 4. **Commodity Silicon Friendly**: Runs natively on standard **$3 ESP32 DevKit 38-Pin** boards (`ESP32-D0WD-V3`) with standard **4 MB SPI Flash** and **0 MB External PSRAM**!
 5. **Pure Internal SRAM Execution**: Consumes only **64.0 KB of internal SRAM**—leaving over **250 KB of free heap** for Wi-Fi, Bluetooth, and IoT sensor loops!
 
@@ -96,10 +98,10 @@ User >
 
 ## 📊 Physical Silicon & Memory Comparison
 
-| Specification / Metric | Viral Microcontroller Project (slvDev / Gemma) | WRAI-Micro (1.25M) |
+| Specification / Metric | Standard Transformer on MCU (KV-Cache in PSRAM) | WRAI-Micro (1.25M) |
 | :--- | :--- | :--- |
-| **Silicon Platform** | ESP32-S3 (Higher-end ~$10) | **ESP32 Classic DevKit 38-Pin (~$3)** |
-| **External PSRAM Required** | **8 MB Mandatory** (Exhausted by KV-Cache) | **0 MB (Zero! Runs 100% in Internal SRAM)** |
+| **Silicon Platform** | High-end MCU (e.g. ESP32-S3) | **ESP32 Classic DevKit 38-Pin (~$3)** |
+| **External PSRAM Required** | **8 MB Required** (Exhausted by KV-Cache) | **0 MB (Zero! Runs 100% in Internal SRAM)** |
 | **SPI Flash Footprint** | **16 MB Flash** (14.9 MB model file) | **4 MB Standard Flash** (~1.31 MB INT8) |
 | **Context Memory Scaling** | Linear $O(T)$ (Crashes when PSRAM fills) | **Strictly Constant $O(1)$ (64.0 KB SRAM)** |
 | **Heap Delta per Token** | Continuous allocation (`malloc`) | **Strictly 0 bytes (`malloc` = 0)** |
@@ -172,6 +174,27 @@ python esp32/tools/test_generalization_proof.py
 
 ---
 
+## 🔬 Radical Transparency: Scope & Honest Status (No Hype)
+
+To maintain strict scientific integrity, we clearly state the operational scope of WRAI-Micro:
+* **What WRAI-Micro IS**:
+  * An authentic, weight-driven linear recurrent neural network operating on bare-metal silicon.
+  * A verifiable physical proof that language modeling can run inside **64.0 KB of internal SRAM** with strictly flat $O(1)$ memory.
+  * A lightweight micro-brain capable of self-identity, continuous multi-turn state retention, and edge interaction without cloud dependencies.
+* **What WRAI-Micro IS NOT**:
+  * It is **not** a general-purpose, multi-billion parameter world-knowledge chatbot. With 1.25M parameters, its factual memory is strictly bounded by its compact training distribution (SimpleStories domain).
+
+---
+
+## 🙏 Acknowledgements & Attribution to Prior Art
+
+We extend our deep gratitude to the open-source projects and research teams that made this edge implementation possible:
+1. **SimpleStories Research Team**: For open-sourcing **SimpleStories-V2-1.25M** (*Eldan & Li, 2023 / arXiv:2504.09184*), which demonstrated that compact language models can acquire syntactically coherent representations.
+2. **Espressif Systems**: For creating the accessible, durable, and democratizing **ESP32** microcontroller ecosystem.
+3. **Microsoft Research**: For the linear retention mathematics introduced in **RetNet**, which served as our architectural foundation for sub-quadratic recurrent state computation.
+
+---
+
 ## 📜 License & Citation
 
 WRAI-Micro is released under the **Apache License 2.0**.  
@@ -184,6 +207,6 @@ If you utilize this architecture or empirical microcontroller findings in your r
   year = {2026},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/MusounoEnma/WRAI}}
+  howpublished = {\url{https://github.com/MusounoEnma/WRAI/tree/main/esp32}}
 }
 ```

@@ -111,6 +111,27 @@ python qwen/inference/test_wrai_x_08b_english.py
 
 ---
 
+## 🔬 Radical Transparency: Scope & Honest Status (No Hype)
+
+We adhere strictly to academic integrity and transparency regarding model capabilities:
+* **What Works Decisively**:
+  * **Zero KV-Cache**: 100% physically proven; memory remains fixed at 29.42 MB state buffer across 32,768 tokens with zero heap reallocations.
+  * **Low-Power Execution**: Runs at **~2.1 – 3.2 tok/s** on an ancient 2014 AMD A8 APU (2.0 GHz) laptop CPU without GPU, proving that pure C AVX vectorization enables edge CPU inference.
+  * **Knowledge Retention**: All 28 layers of pre-trained SwiGLU FFN and token embeddings from Qwen3 remain intact and frozen.
+* **Current Stage-1 Research Boundaries**:
+  * This release represents an **Architectural Stage-1 Foundation Release**. While the mathematical recurrence and zero-cache mechanisms are rock-solid, nuanced multi-step logical reasoning and freeform conversational fluency are actively being refined through subsequent distillation and alignment passes.
+
+---
+
+## 🙏 Acknowledgements & Attribution
+
+WRAI-X builds upon the brilliant research of the global AI community. We specifically acknowledge:
+1. **The Qwen Team at Alibaba Cloud**: For the pre-trained weights and architectural excellence of **Qwen3-0.6B**.
+2. **Microsoft Research**: For the mathematical principles of **RetNet** (*Sun et al.*), which provided the theoretical bedrock for linear retention recurrence.
+3. **The Wavelet and Cognitive Architecture Pioneers**: Whose formulation of the **Discrete Haar Wavelet Transform (DWT)** and **Hyperdimensional Computing (HDC)** inspired our multi-resolution representation filters.
+
+---
+
 ## 📜 License & Citation
 
 WRAI-X is open-source under the **Apache License 2.0**.  

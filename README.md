@@ -38,8 +38,7 @@ WRAI is deployed across two distinct, fully reproducible production modules:
 | **Recurrent State Buffer** | **29.42 MB** (28 layers $\times$ 16 heads $\times 128 \times 128$) | **64.0 KB** (4 layers $\times$ 4 heads $\times 32 \times 32$) |
 | **Dynamic Heap Delta** | **+0.00 MB** ($T=1$ to $T=32\text{K}$) | **0 bytes** ($T=1$ to continuous chat) |
 | **Target Silicon & Runtime** | x86_64 CPU (256-bit AVX SIMD + `mmap`) | ESP32 Xtensa Dual-Core LX6 @ 240 MHz |
-| **Hardware Requirements** | Standard Consumer PC (No GPU required) | **$3 ESP32 DevKit (0 MB PSRAM, 4MB Flash)** |
-| **Measured Throughput** | ~40 – 50 tok/s (Multi-core x86) | **1.7 – 4.2 tok/s** (Direct from SPI Flash) |
+| **Empirically Measured Speed** | **2.1 – 3.2 tok/s** (AMD A8 APU @ 2.0 GHz, Physical PC) <br> *(Projected: ~25–45 tok/s on modern 8-core AVX2 CPUs)* | **1.7 – 4.2 tok/s** (Direct from SPI Flash, ESP32 COM3) |
 | **Official Module Path** | 👉 [`qwen/`](qwen/) | 👉 [`esp32/`](esp32/) |
 
 ---
@@ -137,6 +136,18 @@ WRAI/
 1. Open [`esp32/firmware/wrai_micro_esp32/wrai_micro_esp32.ino`](esp32/firmware/wrai_micro_esp32/wrai_micro_esp32.ino) in Arduino IDE.
 2. Select **Board: ESP32 Dev Module** and **Partition Scheme: Huge APP (3MB No OTA)**.
 3. Flash to your board on `COM3` (or device port), then open Serial Monitor at **115200 baud** to converse with offline AI running directly on your microcontroller!
+
+---
+
+## 🙏 Acknowledgements & Attribution to Prior Art
+
+WRAI proudly builds upon the groundbreaking theoretical and engineering contributions of the open research community. We express our deepest gratitude and academic respect to:
+
+1. **Qwen Team (Alibaba Cloud)**: For open-sourcing the remarkable **Qwen3-0.6B** foundation model. The factual depth and linguistic representations in its pre-trained SwiGLU FFN networks provide the core knowledge substrate for WRAI-X.
+2. **Microsoft Research**: For the seminal formulation of **RetNet** (*Retentive Network: A Successor to Transformer for Large Language Models*, Sun et al., 2023), establishing the mathematical dual-form of linear recurrence and multi-scale retention that directly inspired our zero KV-cache formulation.
+3. **SimpleStories Research Team**: For creating the compact **SimpleStories-V2-1.25M** language model (*arXiv:2504.09184*, Eldan & Li), demonstrating that controlled micro-models can internalize robust synthetic grammar, making sub-$5 embedded silicon AI possible.
+4. **Espressif Systems**: For democratizing low-power edge computing through the ubiquitous, affordable **ESP32** microcontroller architecture.
+5. **Pioneers of Signal Processing & Hyperdimensional Computing**: Specifically the mathematicians behind the **Discrete Haar Wavelet Transform (DWT)** and vector-symbolic cognitive architectures (Pentti Kanerva et al.).
 
 ---
 

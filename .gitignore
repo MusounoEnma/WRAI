@@ -15,11 +15,15 @@
 # Large weights directories
 models/
 models x/
+produce/
+archive/
 models x
 wrai-x/
 wrai-x
 1.7b models/
 backups/
+produce/esp32/base_model/
+esp32/base_model/
 
 # Compiled Executables & Objects (build from source or download from Releases)
 *.exe

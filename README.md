@@ -120,28 +120,43 @@ Physical RAM consumption of the active inference process (`wrai_x.exe`) was cont
 
 ```
 WRAI/
-├── wrai-x/                             # 🚀 WRAI-X (0.8B-Class / ~0.83B) CORE WORKSPACE (Modular Base)
-│   ├── run_wrai_x.bat                  # 1-Click interactive launcher for Windows
-│   ├── README.md                       # Technical documentation & architecture details
-│   │
-│   ├── qwen/                           # Model Weights & Automated Setup
-│   │   ├── wrai_x_vocab.bin            # BPE Vocabulary (151,936 tokens, 1.52 MB, in repo)
-│   │   ├── download_weights.py         # Automated downloader from Hugging Face Model Hub
-│   │   └── README.md                   # Specifications for .bin (1.35 GB) & .pt (1.66 GB)
-│   │
-│   ├── engine/                         # Pure Native C Inference Engine
-│   │   ├── wrai_x.exe                  # Optimized compiled binary (-O3 -mavx -fopenmp)
+├── qwen/                               # 🚀 WRAI-X (0.8B-Class / ~0.83B) FOUNDATION RELEASE
+│   ├── README.md                       # Comprehensive Qwen documentation & Hugging Face guide
+│   ├── engine/                         # Pure Native C Inference Engine (Zero KV-Cache)
 │   │   ├── build_wrai_x.bat            # GCC MinGW-w64 build script
-│   │   ├── run_wrai_x.bat              # Local execution script
-│   │   ├── src/                        # C source files (kernel, CLI, BPE tables)
-│   │   ├── include/                    # Architectural C header definitions
-│   │   └── audit/                      # OS kernel & memory scaling forensic audit tools
-│   │
-│   └── training/                       # PyTorch Architectural Transplant Pipeline
-│       ├── colab_train_wrai_x_08b_transplant.py # End-to-end transplant training script
-│       ├── WRAI_X_08B_COLAB.ipynb      # Interactive Google Colab notebook
-│       ├── quantize_wrai_x_08b_colab.py# PyTorch FP32 -> INT8 Row-wise Binary Converter
-│       └── poc_wrai_x_08b.py           # Theoretical PyTorch verification suite
+│   │   ├── run_wrai_x.bat              # Execution wrapper
+│   │   ├── src/wrai_x_cli.c            # CLI with AVX SIMD execution
+│   │   ├── include/wrai_x_engine.h     # C header definitions
+│   │   └── audit/                      # Windows NT kernel & memory audit tools
+│   ├── training/                       # Model Training & Transplantation
+│   │   ├── colab_train_wrai_x_08b_transplant.py # Zero-contamination transplant pipeline
+│   │   ├── WRAI_X_08B_COLAB.ipynb      # Official Google Colab notebook
+│   │   └── poc_wrai_x_08b.py           # Rapid POC verification suite
+│   ├── quantization/                   # Model Quantization
+│   │   └── quantize_wrai_x_08b_colab.py# PyTorch FP32 -> INT8 Row-wise Binary Converter
+│   ├── inference/                      # Verification & Inspection
+│   │   ├── test_wrai_x_08b_english.py  # English dialogue & reasoning test
+│   │   ├── inspect_wrai_x_drive_model.py # Weight tensor inspector
+│   │   └── verify_zero_kv_cache_deep_dive.py # Deep-dive zero KV-cache audit
+│   └── weights/                        # Weights Retrieval
+│       └── download_weights.py         # Automated downloader from Hugging Face Model Hub
+│
+├── esp32/                              # ⚡ WRAI-MICRO (1.25M) PHYSICAL SILICON EDGE RELEASE
+│   ├── README.md                       # Physical microcontroller documentation & benchmarks
+│   ├── firmware/wrai_micro_esp32/      # Arduino IDE Firmware
+│   │   ├── wrai_micro_esp32.ino        # Continuous state interactive serial sketch
+│   │   ├── wrai_micro_engine.h         # Pure native C linear recurrence engine
+│   │   ├── wrai_micro_vocab.h          # 4023-token PROGMEM dictionary
+│   │   └── wrai_micro_weights.h        # INT8 weights PROGMEM array (~1.31 MB)
+│   ├── training/                       # Transplantation Pipeline
+│   │   ├── download_base_model.py      # Base SimpleStories downloader
+│   │   ├── prepare_dataset.py          # Tokenizer & hybrid dataset generator
+│   │   └── train_transplant_esp32.py   # PyTorch architectural transplantation
+│   └── tools/                          # Deployment & Verification
+│       ├── export_to_c.py              # INT8 quantizer and C exporter
+│       ├── bin_to_c_array.py           # Binary-to-Header C array generator
+│       ├── benchmark_reality_check.py  # Authentic reality-check benchmark
+│       └── test_generalization_proof.py# Neural dynamics & generalization audit
 │
 ├── LICENSE                             # Official Apache License 2.0
 └── .gitignore                          # Configured protection against >100MB GitHub limit
@@ -154,25 +169,24 @@ WRAI/
 ### 1. Clone Repository
 ```bash
 git clone https://github.com/MusounoEnma/WRAI.git
-cd WRAI/wrai-x
+cd WRAI
 ```
 
-### 2. Download Model Weights (1.35 GB INT8)
-Official weights are hosted on the **Hugging Face Model Hub**:  
+### 2. Run WRAI-X (0.8B) on PC / Server
+Download model weights (~1.35 GB INT8) from **Hugging Face Model Hub**:  
 👉 **[https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3)**
 
-Run the automated download helper:
 ```bash
-cd qwen
-python download_weights.py
-cd ..
+python qwen/weights/download_weights.py
+qwen/engine/build_wrai_x.bat
+qwen/engine/run_wrai_x.bat
 ```
 
-### 3. Launch Native C Inference Engine (Windows)
-Double-click **`run_wrai_x.bat`** or run via command line:
-```cmd
-run_wrai_x.bat
-```
+### 3. Run WRAI-Micro (1.25M) on Physical ESP32
+Open `esp32/firmware/wrai_micro_esp32/wrai_micro_esp32.ino` in Arduino IDE:
+* Board: `ESP32 Dev Module`
+* Partition Scheme: `Huge APP (3MB No OTA / 1MB SPIFFS)`
+* Upload to device on your serial port (e.g. `COM3`), then open Serial Monitor at `115200 baud`!
 
 ---
 

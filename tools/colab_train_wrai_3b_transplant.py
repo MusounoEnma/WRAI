@@ -3,13 +3,13 @@
 =============================================================================
  WRAI-3B — MONSTER 1:1 QWEN WEIGHT TRANSPLANT & 151k FULL VOCAB TRAINER
 =============================================================================
- Arsitektur 1:1 Skala Penuh:
-  - 100% 0% KV-Cache (Fixed 16 KB SRAM Ping-Pong Buffer)
-  - 24 Layer ResGRU + SwiGLU FFN + 4-Level Haar DWT Spectral Mixer
-  - Dimensi: Hidden=2048, FFN=11008, Layers=24, Vocab=151936 (~2.4B - 2.8B Params)
-  - 1:1 Direct Weight Transplant dari Qwen/Qwen2.5-3B-Instruct
-  - Full 151,936 Vocab (Tanpa Slicing, Kosakata Sempurna & Bahasa Mengalir)
-  - Distilasi: Shift-1 Clean Alignment dari Qwen2.5-3B
+ Full-Scale 1:1 Architecture:
+  - 100% Zero KV-Cache (Fixed 16 KB SRAM Ping-Pong Buffer)
+  - 24-Layer ResGRU + SwiGLU FFN + 4-Level Haar DWT Spectral Mixer
+  - Dimensions: Hidden=2048, FFN=11008, Layers=24, Vocab=151936 (~2.4B - 2.8B Params)
+  - 1:1 Direct Weight Transplant from Qwen/Qwen2.5-3B-Instruct
+  - Full 151,936 Vocab (Zero Slicing, Full Natural Vocabulary & Fluid Reasoning)
+  - Distillation: Shift-1 Clean Alignment from Qwen2.5-3B
 =============================================================================
 """
 

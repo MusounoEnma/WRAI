@@ -20,11 +20,11 @@ static void print_banner(const wrai_v16_model_t* model) {
     printf("\n=================================================================\n");
     printf("   🌟 WRAI v16 (1.7B) PURE NATIVE C INFERENCE ENGINE            \n");
     printf("=================================================================\n");
-    printf(" [*] Arsitektur     : RetNet Multi-Head + Haar DWT 1D + SwiGLU\n");
-    printf(" [*] Parameter      : ~1.84 Miliar (1,838,131,658)\n");
-    printf(" [*] Kuantisasi     : INT8 Symmetric Row-wise (Loss: %.4f)\n", model->header.loss);
-    printf(" [*] Hardware Target: AMD A8 Puma+ (AVX 1.0 SIMD, 8GB RAM)\n");
-    printf(" [*] Memory Buff    : O(1) Constant (~28 MB Recurrent State, 0 KV-Cache)\n");
+    printf(" [*] Architecture   : RetNet Multi-Head + Haar DWT 1D + SwiGLU\n");
+    printf(" [*] Parameters     : ~1.84 Billion (1,838,131,658)\n");
+    printf(" [*] Quantization   : INT8 Symmetric Row-wise (Loss: %.4f)\n", model->header.loss);
+    printf(" [*] Target Hardware: AMD A8 Puma+ (AVX 1.0 SIMD, 8GB RAM)\n");
+    printf(" [*] Memory Budget  : O(1) Constant (~28 MB Recurrent State, 0 KV-Cache)\n");
     printf(" [*] Mapping Mode   : Zero-Heap Virtual Memory-Mapped (mmap)\n");
     printf("=================================================================\n\n");
 }
@@ -41,38 +41,38 @@ int main(int argc, char** argv) {
     if (argc >= 2) model_path = argv[1];
     if (argc >= 3) vocab_path = argv[2];
 
-    printf("[*] Memuat Model WRAI v16 dari: %s...\n", model_path);
+    printf("[*] Loading WRAI v16 Model from: %s...\n", model_path);
     wrai_v16_model_t model;
     if (!wrai_v16_load_model(model_path, &model)) {
-        fprintf(stderr, "[ERROR] Gagal memuat file binary model.\n");
+        fprintf(stderr, "[ERROR] Failed to load binary model file.\n");
         return 1;
     }
-    printf("[OK] Model berhasil dimap! Ukuran file: %.2f GB\n", (double)model.file_size / (1024.0 * 1024.0 * 1024.0));
+    printf("[OK] Model mapped successfully! File size: %.2f GB\n", (double)model.file_size / (1024.0 * 1024.0 * 1024.0));
 
-    printf("[*] Memuat Vocabulary Tokenizer dari: %s...\n", vocab_path);
+    printf("[*] Loading Tokenizer Vocabulary from: %s...\n", vocab_path);
     wrai_v16_tokenizer_t tok;
     if (!wrai_v16_load_tokenizer(vocab_path, &tok)) {
-        fprintf(stderr, "[ERROR] Gagal memuat file vocabulary binary.\n");
+        fprintf(stderr, "[ERROR] Failed to load tokenizer binary vocabulary.\n");
         wrai_v16_free_model(&model);
         return 1;
     }
-    printf("[OK] Tokenizer Siap! Total Vocabulary: %u tokens.\n", tok.num_tokens);
+    printf("[OK] Tokenizer Ready! Total Vocabulary: %u tokens.\n", tok.num_tokens);
 
     wrai_v16_state_t state;
     if (!wrai_v16_state_init(&state)) {
-        fprintf(stderr, "[ERROR] Gagal mengalokasi recurrent state buffer.\n");
+        fprintf(stderr, "[ERROR] Failed to allocate recurrent state buffer.\n");
         wrai_v16_free_tokenizer(&tok);
         wrai_v16_free_model(&model);
         return 1;
     }
-    printf("[OK] Recurrent State Buffer Siap: ~28 MB RAM (Konstan O(1)).\n");
+    printf("[OK] Recurrent State Buffer Ready: ~28 MB RAM (O(1) Constant).\n");
 
     print_banner(&model);
 
     /* Allocate logits buffer */
     float* logits = (float*)malloc(WRAI_V16_VOCAB_SIZE * sizeof(float));
     if (!logits) {
-        fprintf(stderr, "[ERROR] Gagal mengalokasi logits buffer.\n");
+        fprintf(stderr, "[ERROR] Failed to allocate logits buffer.\n");
         return 1;
     }
 
@@ -88,11 +88,11 @@ int main(int argc, char** argv) {
     int history_len = 0;
 
     char user_input[MAX_PROMPT_LEN];
-    printf("Ketik pertanyaanmu (atau 'exit' untuk keluar, 'reset' untuk reset konteks).\n");
-    printf("[*] Rekomendasi Pertanyaan:\n");
-    printf("    1. Siapa kamu?\n");
-    printf("    2. Buatkan fungsi Python untuk membalikkan string.\n");
-    printf("    3. Jelaskan siapa kamu dan bagaimana ekosistem WRAI bekerja.\n");
+    printf("Type your question (or 'exit' to quit, 'reset' to reset context).\n");
+    printf("[*] Recommended Prompts:\n");
+    printf("    1. Who are you?\n");
+    printf("    2. Write a Python function to reverse a string.\n");
+    printf("    3. Explain who you are and how the WRAI ecosystem operates.\n");
     printf("    4. What is SQL Injection and how can developers prevent it?\n\n");
 
     while (1) {
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
         if (strcmp(user_input, "reset") == 0) {
             wrai_v16_state_reset(&state);
             history_len = 0;
-            printf("[*] Konteks memori recurrent berhasil di-reset ke 0.\n\n");
+            printf("[*] Recurrent memory context successfully reset to zero.\n\n");
             continue;
         }
 
@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
         const char* prompt_to_send = user_input;
         if (_stricmp(user_input, "halo") == 0 || _stricmp(user_input, "hai") == 0 ||
             _stricmp(user_input, "hi") == 0 || _stricmp(user_input, "hello") == 0) {
-            prompt_to_send = "Halo, siapa kamu?";
+            prompt_to_send = "Hello, who are you?";
         }
 
         /* Format Qwen ChatML Prompt cleanly */
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
         num_p_tokens += wrai_v16_tokenize(&tok, "assistant\n", prompt_tokens + num_p_tokens, 1024 - num_p_tokens);
 
         if (num_p_tokens <= 0) {
-            printf("[WARN] Gagal mentokenisasi input.\n");
+            printf("[WARN] Failed to tokenize input.\n");
             continue;
         }
 
@@ -194,6 +194,6 @@ int main(int argc, char** argv) {
     wrai_v16_free_tokenizer(&tok);
     wrai_v16_free_model(&model);
 
-    printf("\n[*] Engine WRAI v16 ditutup dengan rapi. Sampai jumpa!\n");
+    printf("\n[*] WRAI v16 engine cleanly terminated. Farewell!\n");
     return 0;
 }

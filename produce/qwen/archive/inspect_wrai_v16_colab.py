@@ -2,11 +2,11 @@
 =============================================================================
    🔬 WRAI v16 (1.7B) FORENSIC DEEP-INSPECTION TOOL
 =============================================================================
- Alat diagnostik mandiri (self-contained) untuk memeriksa:
- 1. Status Checkpoint & Metadata
- 2. Kesehatan Bobot Tensor (NaN, Inf, Zero, Norm, Distribusi)
- 3. Status Gate Wavelet Spectral & Faktor Peluruhan Retention (Gamma)
- 4. Forensik Logits & Probabilitas Top-10 Next-Token
+ Self-contained diagnostic tool to inspect:
+ 1. Checkpoint Status & Metadata
+ 2. Tensor Weight Health (NaN, Inf, Zero, Norm, Distribution)
+ 3. Spectral Wavelet Gate Status & Retention Decay Factor (Gamma)
+ 4. Logits Forensics & Top-10 Next-Token Probabilities
 =============================================================================
 """
 
@@ -231,17 +231,17 @@ def main():
     ]
 
     found_files = [c for c in candidates if os.path.exists(c)]
-    print(f"\n[*] Daftar File Checkpoint yang Ditemukan:")
+    print(f"\n[*] List of Detected Checkpoint Files:")
     for f in found_files:
         sz = os.path.getsize(f) / (1024**2)
         print(f"   -> {f} ({sz:.1f} MB)")
 
     if not found_files:
-        print("[!] ERROR: Tidak ada berkas checkpoint yang ditemukan! Periksa direktori Drive.")
+        print("[!] ERROR: No checkpoint files found! Please check Drive directory.")
         return
 
     active_ckpt_path = found_files[0]
-    print(f"\n[*] Melakukan Forensik pada Checkpoint Utama: {active_ckpt_path}")
+    print(f"\n[*] Performing Forensics on Primary Checkpoint: {active_ckpt_path}")
     ckpt = torch.load(active_ckpt_path, map_location="cpu")
 
     print(f"   Epoch          : {ckpt.get('epoch', 'N/A')}")
@@ -256,7 +256,7 @@ def main():
     # -------------------------------------------------------------------------
     # 3. Weight Sanity & Numerical Integrity Checks
     # -------------------------------------------------------------------------
-    print_header("1. PEMERIKSAAN INTEGRITAS DAN KESEHATAN BOBOT")
+    print_header("1. WEIGHT INTEGRITY & HEALTH AUDIT")
 
     nan_keys = []
     inf_keys = []
@@ -279,22 +279,22 @@ def main():
             summary_table.append((name, list(t.shape), mean, std, l2_norm))
 
     if nan_keys:
-        print(f"❌ [KRITIS] DITEMUKAN NaN PADA TENSOR: {nan_keys}")
+        print(f"❌ [CRITICAL] FOUND NaN IN TENSOR: {nan_keys}")
     else:
-        print("✅ [SEHAT] 0% NaN: Seluruh tensor bebas dari nilai NaN (Tidak ada gradien rusak).")
+        print("✅ [HEALTHY] 0% NaN: All tensors free of NaN values (No corrupted gradients).")
 
     if inf_keys:
-        print(f"❌ [KRITIS] DITEMUKAN Infinity PADA TENSOR: {inf_keys}")
+        print(f"❌ [CRITICAL] FOUND Infinity IN TENSOR: {inf_keys}")
     else:
-        print("✅ [SEHAT] 0% Inf: Tidak ada gradient explosion.")
+        print("✅ [HEALTHY] 0% Inf: No gradient explosion detected.")
 
     if zero_keys:
-        print(f"⚠️ [PERINGATAN] Tensor Bernilai 0 Mutlak: {zero_keys}")
+        print(f"⚠️ [WARNING] Absolute Zero Tensors: {zero_keys}")
     else:
-        print("✅ [SEHAT] Bobot neuron aktif dan hidup.")
+        print("✅ [HEALTHY] Neuron weights active and alive.")
 
-    print("\n   [Statistik Lapisan Sampel]:")
-    print(f"   {'Nama Tensor':<35} | {'Shape':<18} | {'Mean':<10} | {'Std':<10} | {'L2 Norm':<10}")
+    print("\n   [Sample Layer Statistics]:")
+    print(f"   {'Tensor Name':<35} | {'Shape':<18} | {'Mean':<10} | {'Std':<10} | {'L2 Norm':<10}")
     print("   " + "-"*92)
     for n, sh, m, s, l2 in summary_table:
         print(f"   {n:<35} | {str(sh):<18} | {m:<10.5f} | {s:<10.5f} | {l2:<10.2f}")
@@ -315,16 +315,16 @@ def main():
     # -------------------------------------------------------------------------
     # 4. Live Logits Distribution & Top-10 Next-Token Forensics
     # -------------------------------------------------------------------------
-    print_header("2. FORENSIK DISTRIBUSI LOGITS & PREDIKSI TOP-10 TOKEN")
+    print_header("2. LOGITS DISTRIBUTION FORENSICS & TOP-10 TOKEN PREDICTIONS")
 
-    print("[*] Membersihkan CPU RAM sebelum inferensi logits...")
+    print("[*] Clearing CPU RAM before logits inference...")
     del ckpt
     import gc
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    print("[*] Memuat Tokenizer...")
+    print("[*] Loading Tokenizer...")
     HF_TOKEN = os.environ.get("HF_TOKEN", "")
     try:
         tok = AutoTokenizer.from_pretrained(QWEN3_MODEL_NAME, token=HF_TOKEN, trust_remote_code=True)
@@ -335,11 +335,11 @@ def main():
 
     MODEL_DTYPE = torch.bfloat16 if (torch.cuda.is_available() and torch.cuda.is_bf16_supported()) else torch.float32
     vocab_size = state_dict["embed.weight"].size(0) if "embed.weight" in state_dict else 151936
-    print(f"[*] Mengalokasikan model WRAI v16 langsung di GPU VRAM (Vocab: {vocab_size:,}, Dtype: {MODEL_DTYPE})...")
+    print(f"[*] Allocating WRAI v16 model directly in GPU VRAM (Vocab: {vocab_size:,}, Dtype: {MODEL_DTYPE})...")
     with torch.device(DEVICE):
         model = WRAI17BModel(vocab_size=vocab_size).to(dtype=MODEL_DTYPE)
 
-    # Muat bobot langsung ke GPU
+    # Load weights directly to GPU
     with torch.no_grad():
         for k, v in state_dict.items():
             if k in model.state_dict():
@@ -350,7 +350,7 @@ def main():
                     min_v = min(dst.size(0), v.size(0))
                     dst[:min_v].copy_(v[:min_v].to(DEVICE, dtype=MODEL_DTYPE))
     
-    # Hapus state_dict dari CPU RAM untuk menghemat 3.5 GB
+    # Delete state_dict from CPU RAM to save memory
     del state_dict
     gc.collect()
 
@@ -394,8 +394,8 @@ def main():
             repr_str = repr(token_str)
             print(f"     #{rank+1:<2} | TokenID: {tid.item():<7} | Prob: {pr.item()*100:6.2f}% | Text: {repr_str:<18}")
 
-    print_header("3. STATUS REKAYASA & KESIMPULAN")
-    print("Skrip forensik selesai dijalankan.")
+    print_header("3. ENGINEERING STATUS & CONCLUSION")
+    print("Forensic inspection script completed successfully.")
     print("="*70 + "\n")
 
 if __name__ == "__main__":

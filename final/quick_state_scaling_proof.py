@@ -9,10 +9,10 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 print("=" * 80)
-print(" 🔬 BUKTI EMPIRIS: STATE SHAPE & RUNTIME MEMORY FOOTPRINT (T = 128 s/d 8192)")
+print(" 🔬 EMPIRICAL PROOF: STATE SHAPE & RUNTIME MEMORY FOOTPRINT (T = 128 to 8192)")
 print("=" * 80)
 
-# Konfigurasi Layer WRAI-X 0.8B
+# WRAI-X 0.8B Layer Configuration
 B = 1
 H = 16
 HD = 128
@@ -22,11 +22,11 @@ NUM_LAYERS = 28
 device = torch.device("cpu")
 dtype = torch.bfloat16
 
-print(f"[*] Arsitektur: {NUM_LAYERS} Layers, {H} Heads, HeadDim={HD}, Dim={D}")
+print(f"[*] Architecture: {NUM_LAYERS} Layers, {H} Heads, HeadDim={HD}, Dim={D}")
 print(f"[*] Per-token update: S_t = γ S_{{t-1}} + K_t^T V_t")
 print(f"[*] Output step     : O_t = Q_t S_t\n")
 
-# Simulasi state update murni untuk mengukur scaling memori terhadap T
+# Pure state update simulation to evaluate memory scaling across sequence length T
 def test_state_scaling(test_lengths):
     print("=" * 100)
     print(f"{'Context Length (T)':<20} | {'State Tensor Shapes (Per Layer)':<35} | {'State Mem (28 L)':<16} | {'Δ Mem':<10} | {'Transformer KV (28 L)'}")
@@ -34,7 +34,7 @@ def test_state_scaling(test_lengths):
     
     base_mem = None
     for T in test_lengths:
-        # Inisialisasi state awal (sama seperti forward_step pertama kali)
+        # Initialize initial state (identical to first forward_step)
         states = []
         for l in range(NUM_LAYERS):
             sm = torch.zeros(B, H, HD, HD, dtype=dtype)
@@ -42,7 +42,7 @@ def test_state_scaling(test_lengths):
             shdc = torch.zeros(B, D, dtype=dtype)
             states.append((sm, sr, shdc))
             
-        # Simulasikan recurrent update sepanjang T token
+        # Simulate recurrent update across T tokens
         gamma_m = 0.95
         gamma_r = 0.93
         
@@ -58,7 +58,7 @@ def test_state_scaling(test_lengths):
                 shdc = shdc * 0.95 + 0.05 * torch.randn(B, D, dtype=dtype)
                 states[l] = (sm, sr, shdc)
                 
-        # Ukur memori persis seluruh state tensors
+        # Measure exact memory footprint across all state tensors
         total_elements = 0
         total_bytes = 0
         for l in range(NUM_LAYERS):

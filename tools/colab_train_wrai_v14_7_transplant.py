@@ -3,12 +3,12 @@
 =============================================================================
  WRAI v14.7 — QWEN-TO-WRAI WEIGHT TRANSPLANT & RAPID ADAPTATION TRAINER
 =============================================================================
- Arsitektur:
-  - 100% 0% KV-Cache (Fixed 8 KB SRAM Ping-Pong Buffer)
-  - 12 Layer ResGRU + SwiGLU FFN + 4-Level Haar DWT Spectral Mixer
-  - Dimensi: Hidden=896, FFN=4864, Layers=12, Vocab=32000 (~245M Parameters)
-  - Inisialisasi: Transplantasi Bobot Matang dari Qwen2.5-0.5B-Instruct
-  - Distilasi: Shift-1 Clean Alignment dari Qwen2.5-3B-Instruct
+ Architecture:
+  - 100% Zero KV-Cache (Fixed 8 KB SRAM Ping-Pong Buffer)
+  - 12-Layer ResGRU + SwiGLU FFN + 4-Level Haar DWT Spectral Mixer
+  - Dimensions: Hidden=896, FFN=4864, Layers=12, Vocab=32000 (~245M Parameters)
+  - Initialization: Mature Weight Transplant from Qwen2.5-0.5B-Instruct
+  - Distillation: Shift-1 Clean Alignment from Qwen2.5-3B-Instruct
 =============================================================================
 """
 

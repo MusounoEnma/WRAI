@@ -73,5 +73,5 @@ def test_prompt(query):
             logits, states = model.forward_step(torch.tensor([next_tok]), states)
         print("\n")
 
-test_prompt("halo apa kabar?")
-test_prompt("Siapa kamu?")
+test_prompt("Hello, how are you?")
+test_prompt("What is the capital of France?")

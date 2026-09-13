@@ -18,6 +18,6 @@ echo.
 
 echo.
 echo =================================================================
-echo Program WRAI-X selesai.
+echo WRAI-X execution completed.
 echo =================================================================
 pause

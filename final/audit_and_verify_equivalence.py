@@ -2,12 +2,12 @@
 =============================================================================
    🔬 WRAI-X (0.8B) PARALLEL vs RECURRENT EQUIVALENCE & LAYER AUDIT TOOL
 =============================================================================
- Skrip audit tingkat lanjut sesuai rekomendasi peer-review:
- 1. Audit Struktur Aktual Per-Layer (Memastikan Layer 0 s/d 27 Utuh)
- 2. Uji Ekuivalensi Matematika RetNet: Parallel vs Recurrent Equivalence
-    -> Membuktikan bahwa forward_step() O(1) persis sama dengan forward_parallel()
-    -> Mengukur Max Abs Diff, Mean Abs Diff, dan Cosine Similarity (Target: > 0.999)
- 3. Verifikasi Runtime Zero-KV: Memastikan inferensi tidak menyimpan buffer K/V
+ Advanced peer-review grade audit script:
+ 1. Per-layer actual structure audit (verifying layer 0 to 27 integrity)
+ 2. RetNet mathematical equivalence test: Parallel vs Recurrent Equivalence
+    -> Proves that forward_step() O(1) produces outputs identical to forward_parallel()
+    -> Evaluates Max Abs Diff, Mean Abs Diff, and Cosine Similarity (Target: > 0.999)
+ 3. Runtime Zero-KV Verification: Verifying inference does not retain any K/V buffers
 =============================================================================
 """
 
@@ -18,7 +18,7 @@ import math
 import argparse
 import numpy as np
 
-# Pastikan UTF-8 encoding aman
+# Ensure safe UTF-8 encoding
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -44,7 +44,7 @@ FALLBACK_CHECKPOINT = "wrai_x_08b_transplanted.pt"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # -----------------------------------------------------------------------------
-# Modul Arsitektur Lengkap (Parallel + Recurrent Dual-Mode)
+# Full Architecture Module (Dual-Mode Parallel + Recurrent)
 # -----------------------------------------------------------------------------
 class RMSNorm(nn.Module):
     def __init__(self, dim, eps=1e-6):
@@ -372,17 +372,17 @@ def run_audit(ckpt_path=None):
 
     sd = None
     if ckpt_path and os.path.exists(ckpt_path):
-        print(f"[*] Memuat Checkpoint Asli: {ckpt_path}...", flush=True)
+        print(f"[*] Loading Original Checkpoint: {ckpt_path}...", flush=True)
         sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)
-        print(f"[OK] Checkpoint berhasil dimuat! Total Key: {len(sd):,} tensors.\n", flush=True)
+        print(f"[OK] Checkpoint successfully loaded! Total Keys: {len(sd):,} tensors.\n", flush=True)
     else:
-        print("[!] Checkpoint Google Drive tidak ditemukan. Menjalankan uji arsitektur live.\n", flush=True)
+        print("[!] Google Drive checkpoint not found. Running live architecture test.\n", flush=True)
 
     # -------------------------------------------------------------------------
     # 1. Audit Struktur Aktual Per-Layer
     # -------------------------------------------------------------------------
     print("-" * 75)
-    print(" [1] AUDIT STRUKTUR AKTUAL PER-LAYER (PREFIX & TENSOR SHAPES)")
+    print(" [1] PER-LAYER ACTUAL STRUCTURE AUDIT (PREFIX & TENSOR SHAPES)")
     print("-" * 75, flush=True)
 
     if sd is not None:
@@ -391,7 +391,7 @@ def run_audit(ckpt_path=None):
             for k in sd.keys()
             if k.startswith("layers.") and k.split(".")[1].isdigit()
         })
-        print(f"[*] Total Layer Terdeteksi       : {len(layer_ids)} Layer (Expected: 28)")
+        print(f"[*] Total Detected Layers        : {len(layer_ids)} Layers (Expected: 28)")
         print(f"[*] Layer ID Sample              : {layer_ids[:3]} ... {layer_ids[-3:]}")
 
         for l in [0, len(layer_ids)//2, len(layer_ids)-1]:
@@ -406,16 +406,16 @@ def run_audit(ckpt_path=None):
                         print(f"    {k:50s} shape={tuple(v.shape)} dtype={v.dtype}")
 
     # -------------------------------------------------------------------------
-    # 2. Uji Ekuivalensi Matematika RetNet: Parallel vs Recurrent
+    # 2. RetNet Mathematical Equivalence Test: Parallel vs Recurrent
     # -------------------------------------------------------------------------
     print("\n" + "-" * 75)
-    print(" [2] UJI EKUIVALENSI MATEMATIKA RETNET: PARALLEL ↔ RECURRENT EQUIVALENCE")
+    print(" [2] RETNET MATHEMATICAL EQUIVALENCE TEST: PARALLEL ↔ RECURRENT EQUIVALENCE")
     print("-" * 75, flush=True)
 
     active_layers = NUM_LAYERS if sd is not None else 2
     active_vocab = VOCAB_SIZE if sd is not None else 1000
 
-    print(f"[*] Menginisialisasi Model WRAI-X ({active_layers} Layer) pada Device: {DEVICE}...", flush=True)
+    print(f"[*] Initializing WRAI-X Model ({active_layers} Layers) on Device: {DEVICE}...", flush=True)
     model = WRAIX06BModel(vocab_size=active_vocab, num_layers=active_layers).to(DEVICE).to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
 
     if sd is not None:
@@ -431,11 +431,11 @@ def run_audit(ckpt_path=None):
                 if k_r not in sd and k_b in sd:
                     sd[k_r] = sd[k_b]
         model.load_state_dict(sd, strict=False)
-        print("[OK] Bobot Checkpoint terpasang 100% ke Model.", flush=True)
+        print("[OK] Checkpoint weights loaded 100% into Model.", flush=True)
 
     model.eval()
 
-    # Siapkan sekuens input (16 token)
+    # Prepare input sequence (16 tokens)
     seq_len = 16
     torch.manual_seed(42)
     sample_tokens = [151644, 25, 220, 1024, 88, 342, 512, 1089, 77, 43, 999, 12, 55, 33, 151667, 151668]
@@ -443,13 +443,13 @@ def run_audit(ckpt_path=None):
         sample_tokens = [t % active_vocab for t in sample_tokens]
     input_ids = torch.tensor(sample_tokens, device=DEVICE)
 
-    print(f"[*] Menjalankan komputasi Parallel pada {seq_len} token...", flush=True)
+    print(f"[*] Running Parallel computation on {seq_len} tokens...", flush=True)
     t0 = time.time()
     with torch.no_grad():
         logits_parallel = model.forward_parallel(input_ids.unsqueeze(0)) # [1, T, Vocab]
     t_par = time.time() - t0
 
-    print(f"[*] Menjalankan komputasi Recurrent O(1) step-by-step pada {seq_len} token...", flush=True)
+    print(f"[*] Running O(1) step-by-step Recurrent computation on {seq_len} tokens...", flush=True)
     t0 = time.time()
     states = None
     recurrent_logits = []
@@ -461,7 +461,7 @@ def run_audit(ckpt_path=None):
     t_rec = time.time() - t0
     logits_recurrent = torch.cat(recurrent_logits, dim=1) # [1, T, Vocab]
 
-    # Evaluasi Selisih & Kemiripan
+    # Evaluate Difference & Similarity
     diff = (logits_parallel.float() - logits_recurrent.float())
     max_abs = diff.abs().max().item()
     mean_abs = diff.abs().mean().item()
@@ -479,7 +479,7 @@ def run_audit(ckpt_path=None):
     ).mean().item()
 
     print("\n" + "=" * 55)
-    print("     📊 HASIL UJI PARALLEL vs RECURRENT")
+    print("     📊 PARALLEL vs RECURRENT TEST RESULTS")
     print("=" * 55)
     print(f"  • Max Absolute Difference : {max_abs:.6e}")
     print(f"  • Mean Absolute Difference: {mean_abs:.6e}")
@@ -488,12 +488,12 @@ def run_audit(ckpt_path=None):
     print("=" * 55)
 
     if cosine_last > 0.999:
-        print("\n  🎉 [VERIFIKASI TINGKAT TINGGI BERHASIL - 100% PASS!]")
-        print("  Bukti Ekuivalensi: Nilai Cosine Similarity = {:.6f} (> 0.9999)!".format(cosine_last))
-        print("  Ini membuktikan secara ilmiah bahwa forward_step() yang berjalan di runtime")
-        print("  adalah 100% IDENTIK dengan computational path training parallel!")
+        print("\n  🎉 [HIGH-LEVEL VERIFICATION PASSED - 100% PASS!]")
+        print("  Equivalence Proof: Cosine Similarity = {:.6f} (> 0.9999)!".format(cosine_last))
+        print("  This scientifically validates that forward_step() running at runtime")
+        print("  is 100% IDENTICAL to the parallel training computational path!")
     else:
-        print("\n  [PERHATIAN] Cosine similarity < 0.999. Ada deviasi antara parallel dan recurrent.")
+        print("\n  [WARNING] Cosine similarity < 0.999. Deviation observed between parallel and recurrent modes.")
 
 if __name__ == "__main__":
     run_audit()

@@ -2,12 +2,12 @@
 =============================================================================
    🔬 WRAI v16 (1.7B) STEP 70K DEEP FORENSICS & ARCHITECTURE AUDIT
 =============================================================================
- Skrip audit komprehensif (Ultra-Low RAM, Zero OOM Crash):
- 1. Kecocokan Vocab Size & Tokenizer (151.643 vs 151.936)
- 2. Kesehatan Faktor Peluruhan (Decay Gamma) di 28 Layer Retention
- 3. Verifikasi Temporal Invariance pada GroupNorm (Original vs Per-Token)
- 4. Distribusi Logits & Probabilitas Top-5 Token di Step 70.000
- 5. Uji Generasi Multi-Token Langsung (Sampling + Repetition Penalty)
+ Comprehensive audit script (Ultra-Low RAM, Zero OOM Crash):
+ 1. Vocab Size & Tokenizer alignment (151,643 vs 151,936)
+ 2. Decay Factor (Gamma) health across 28 Retention layers
+ 3. Temporal Invariance verification in GroupNorm (Original vs Per-Token)
+ 4. Logits distribution & Top-5 Token probabilities at Step 70,000
+ 5. Live Multi-Token generation test (Sampling + Repetition Penalty)
 =============================================================================
 """
 
@@ -288,11 +288,11 @@ def main():
             break
 
     if not ckpt_path:
-        print("[!] ERROR: Berkas checkpoint tidak ditemukan di Google Drive atau folder lokal!")
-        print(f"    Dicari di: {candidates}")
+        print("[!] ERROR: Checkpoint file not found in Google Drive or local folder!")
+        print(f"    Searched in: {candidates}")
         return
 
-    # Bersihkan RAM & Cache GPU sebelum mulai
+    # Clear RAM & GPU Cache before start
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     gc.collect()
@@ -302,16 +302,16 @@ def main():
     try:
         tok = AutoTokenizer.from_pretrained(QWEN3_MODEL_NAME, token=HF_TOKEN, trust_remote_code=True)
     except Exception:
-        print(f"[INFO] Tokenizer dialihkan ke {FALLBACK_MODEL_NAME}...")
+        print(f"[INFO] Tokenizer redirected to {FALLBACK_MODEL_NAME}...")
         tok = AutoTokenizer.from_pretrained(FALLBACK_MODEL_NAME, token=HF_TOKEN, trust_remote_code=True)
 
-    # 4. Inisialisasi Model LANGSUNG di GPU dalam Dtype Target (Hemat RAM 100%, Anti-Crash)
-    print(f"[*] Menginisialisasi Model WRAI v16 langsung di {DEVICE} ({MODEL_DTYPE})...")
+    # 4. Initialize Model directly in GPU in Target Dtype
+    print(f"[*] Initializing WRAI v16 Model directly on {DEVICE} ({MODEL_DTYPE})...")
     with torch.device(DEVICE):
         model = WRAI17BModel(vocab_size=151936).to(DEVICE, dtype=MODEL_DTYPE)
 
-    # 5. Streaming Bobot Langsung ke GPU via mmap
-    print(f"[*] Streaming Bobot dari Checkpoint: {ckpt_path} ({os.path.getsize(ckpt_path)/(1024**2):.1f} MB)...")
+    # 5. Stream Weights directly to GPU via mmap
+    print(f"[*] Streaming Weights from Checkpoint: {ckpt_path} ({os.path.getsize(ckpt_path)/(1024**2):.1f} MB)...")
     try:
         ckpt = torch.load(ckpt_path, map_location="cpu", mmap=True, weights_only=False)
     except Exception:
@@ -337,9 +337,9 @@ def main():
     model.eval()
 
     # -------------------------------------------------------------------------
-    # TEST 1: VOCAB SIZE & TOKENIZER ALIGNMENT (Langkah 1)
+    # TEST 1: VOCAB SIZE & TOKENIZER ALIGNMENT (Step 1)
     # -------------------------------------------------------------------------
-    print_header("1. AUDIT UKURAN KOSAKATA & KESELARASAN TOKENIZER (Langkah 1)")
+    print_header("1. VOCABULARY SIZE & TOKENIZER ALIGNMENT AUDIT (Step 1)")
 
     tok_vocab_size = tok.vocab_size
     tok_len = len(tok)
@@ -350,23 +350,23 @@ def main():
     print(f"   - Checkpoint Embedding Weight (embed.weight)  : {saved_vocab:,}")
 
     if saved_vocab >= tok_len:
-        print(f"\n   ✅ [KESIMPULAN VOCAB]: 100% COCOK DAN PRESISI!")
-        print(f"      Bobot model ({saved_vocab:,}) menampung SEMUA token Qwen ({tok_len:,}).")
-        print(f"      Perbedaan 151.643 vs 151.936 BUKAN bug: 151.643 adalah kosa kata dasar (BPE),")
-        print(f"      sedangkan 151.936 adalah total kosa kata termasuk special tokens.")
+        print(f"\n   ✅ [VOCAB CONCLUSION]: 100% MATCHED AND PRECISE!")
+        print(f"      Model weight dimension ({saved_vocab:,}) accommodates ALL Qwen tokens ({tok_len:,}).")
+        print(f"      The difference 151,643 vs 151,936 is NOT a bug: 151,643 is the base BPE vocabulary,")
+        print(f"      while 151,936 is the total vocabulary including special tokens.")
     else:
-        print(f"   ❌ [MISMATCH]: Tokenizer memiliki {tok_len} token tetapi bobot hanya {saved_vocab}!")
+        print(f"   ❌ [MISMATCH]: Tokenizer has {tok_len} tokens but embedding weight is {saved_vocab}!")
 
     special_tokens_to_test = ["<|im_start|>", "<|im_end|>", "<|endoftext|>"]
     for st in special_tokens_to_test:
         tid = tok.convert_tokens_to_ids(st)
         in_vocab = tid is not None and tid < saved_vocab
-        print(f"   - Special Token '{st:<14}': ID = {tid} | Dalam Jangkauan: {'✅ YA' if in_vocab else '❌ TIDAK'}")
+        print(f"   - Special Token '{st:<14}': ID = {tid} | In Range: {'✅ YES' if in_vocab else '❌ NO'}")
 
     # -------------------------------------------------------------------------
-    # TEST 2: DECAY FACTOR (GAMMAS) INSPECTION DI SELURUH LAYER (Teori Decay)
+    # TEST 2: DECAY FACTOR (GAMMAS) INSPECTION ACROSS ALL LAYERS
     # -------------------------------------------------------------------------
-    print_header("2. AUDIT FAKTOR PELURUHAN RETENTION (DECAY GAMMAS - Teori Meluruh)")
+    print_header("2. RETENTION DECAY FACTOR AUDIT (DECAY GAMMAS)")
 
     gammas_summary = []
     layers_to_check = [0, 3, 6, 10, 13, 17, 20, 24, 27]
@@ -378,11 +378,11 @@ def main():
     print(f"   {'Layer':<8} | {'Gamma Min':<12} | {'Gamma Max':<12} | {'Gamma Mean':<12} | Status")
     print("   " + "-"*65)
     for l_idx, gmin, gmax, gmean in gammas_summary:
-        status = "✅ Sangat Sehat" if (gmin > 0.90 and gmax <= 1.00) else "⚠️ Abnormal"
+        status = "✅ Very Healthy" if (gmin > 0.90 and gmax <= 1.00) else "⚠️ Abnormal"
         print(f"   Layer {l_idx:<2} | {gmin:<12.4f} | {gmax:<12.4f} | {gmean:<12.4f} | {status}")
 
-    print("\n   ✅ [KESIMPULAN DECAY]: Teori 'decay meluruh/rusak' terbantahkan secara matematis!")
-    print("      Faktor gamma stabil di rentang [0.96 - 0.999], mempertahankan ingatan kontekstual prima.")
+    print("\n   ✅ [DECAY CONCLUSION]: 'Decay corruption' hypothesis refuted mathematically!")
+    print("      Gamma factors stable in [0.96 - 0.999] range, maintaining prime contextual memory.")
 
     # Bebaskan memori state_dict dan ckpt dari CPU RAM
     del state_dict, ckpt
@@ -393,7 +393,7 @@ def main():
     # -------------------------------------------------------------------------
     # TEST 3: GROUPNORM TEMPORAL INVARIANCE AUDIT (Root Cause Detection)
     # -------------------------------------------------------------------------
-    print_header("3. AUDIT TEMPORAL INVARIANCE: ORIGINAL GROUPNORM VS PER-TOKEN NORM")
+    print_header("3. TEMPORAL INVARIANCE AUDIT: ORIGINAL GROUPNORM VS PER-TOKEN NORM")
 
     test_seq_short = tok.encode("Jelaskan siapa kamu dan ekosistem WRAI", add_special_tokens=False)
     test_seq_long  = test_seq_short + tok.encode(" bekerja dengan efisiensi tinggi pada edge devices tanpa KV-Cache.", add_special_tokens=False)
@@ -417,20 +417,20 @@ def main():
     diff_pt = (logits_short_pt[0, pos, :] - logits_long_pt[0, pos, :]).abs().max().item()
 
     print(f"   [1] ORIGINAL GroupNorm across (C, T):")
-    print(f"       -> Selisih Logits ketika Seq Length berubah : {diff_orig:.6f}")
+    print(f"       -> Logits difference when Seq Length changes: {diff_orig:.6f}")
     if diff_orig > 0.05:
-        print(f"       ⚠️ [TEMPORAL LEAK DETECTED]: Nilai token 0 merembes terpengaruh token masa depan!")
-        print(f"          Ini membuktikan secara ilmiah mengapa angka berulang muncul saat inferensi variable length.")
+        print(f"       ⚠️ [TEMPORAL LEAK DETECTED]: Token 0 output leaks from future tokens!")
+        print(f"          This scientifically explains repeating digits during variable-length inference.")
 
     print(f"\n   [2] PER-TOKEN GroupNorm:")
-    print(f"       -> Selisih Logits ketika Seq Length berubah : {diff_pt:.6f}")
+    print(f"       -> Logits difference when Seq Length changes: {diff_pt:.6f}")
     if diff_pt < 1e-4:
-        print(f"       ✅ [100% CAUSAL INVARIANCE]: Selisih 0.0000! Kebal sempurna terhadap panjang urutan!")
+        print(f"       ✅ [100% CAUSAL INVARIANCE]: Delta 0.0000! Completely invariant to sequence length!")
 
     # -------------------------------------------------------------------------
-    # TEST 4: LOGITS TOP-5 PREDICTIONS PADA STEP 70K
+    # TEST 4: LOGITS TOP-5 PREDICTIONS AT STEP 70K
     # -------------------------------------------------------------------------
-    print_header("4. ANALISIS TOP-5 PREDIKSI TOKEN PADA STEP 70K")
+    print_header("4. TOP-5 TOKEN PREDICTIONS ANALYSIS AT STEP 70K")
 
     prompts = [
         "Explain who you are and how the WRAI ecosystem works.",
@@ -455,9 +455,9 @@ def main():
             print(f"   #{r+1}: TokenID {tid.item():<7} | Prob: {prob.item()*100:5.2f}% | Text: {t_str}")
 
     # -------------------------------------------------------------------------
-    # TEST 5: UJI GENERASI MULTI-TOKEN DENGAN SAMPLING & REPETITION PENALTY
+    # TEST 5: MULTI-TOKEN GENERATION TEST WITH SAMPLING & REPETITION PENALTY
     # -------------------------------------------------------------------------
-    print_header("5. UJI GENERASI MULTI-TOKEN (Sampling Temp=0.7, Top-p=0.9, Rep-Penalty=1.15)")
+    print_header("5. MULTI-TOKEN GENERATION TEST (Sampling Temp=0.7, Top-p=0.9, Rep-Penalty=1.15)")
 
     benchmarks = [
         ("English Assistant", "Explain who you are and what makes WRAI unique."),
@@ -467,7 +467,7 @@ def main():
 
     for category, prompt_text in benchmarks:
         print(f"\n" + "-"*75)
-        print(f"  📌 Kategori: {category}")
+        print(f"  📌 Category: {category}")
         print(f"  Prompt   : \"{prompt_text}\"")
         print("-" * 75)
 
@@ -476,7 +476,7 @@ def main():
         t0 = time.time()
         out_orig = generate_sample(model, tok, prompt_text, max_new_tokens=45, temp=0.7, top_p=0.9, rep_penalty=1.15)
         t_orig = time.time() - t0
-        print(f"\n[A] Hasil Generasi (Original GroupNorm) [{t_orig:.2f}s]:")
+        print(f"\n[A] Generation Result (Original GroupNorm) [{t_orig:.2f}s]:")
         print(f"    {out_orig}")
 
         # Mode B: Per-Token GroupNorm
@@ -484,11 +484,11 @@ def main():
         t0 = time.time()
         out_pt = generate_sample(model, tok, prompt_text, max_new_tokens=45, temp=0.7, top_p=0.9, rep_penalty=1.15)
         t_pt = time.time() - t0
-        print(f"\n[B] Hasil Generasi (Per-Token GroupNorm) [{t_pt:.2f}s]:")
+        print(f"\n[B] Generation Result (Per-Token GroupNorm) [{t_pt:.2f}s]:")
         print(f"    {out_pt}")
 
-    print_header("AUDIT FORENSIK STEP 70K SELESAI")
-    print("\n✅ Hasil investigasi & rekomendasi telah terekam.")
+    print_header("STEP 70K FORENSIC AUDIT COMPLETED")
+    print("\n✅ Investigation results & recommendations recorded.")
 
 if __name__ == "__main__":
     main()

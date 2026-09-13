@@ -29,7 +29,7 @@ def main():
     try:
         from huggingface_hub import hf_hub_download
     except ImportError:
-        print("[!] huggingface_hub belum terinstall. Menginstall via pip...")
+        print("[!] huggingface_hub is not installed. Installing via pip...")
         import subprocess
         subprocess.check_call([sys.executable, "-m", "pip", "install", "huggingface_hub"])
         from huggingface_hub import hf_hub_download
@@ -37,10 +37,10 @@ def main():
     for filename in FILES_TO_DOWNLOAD:
         local_path = os.path.join(target_dir, filename)
         if os.path.exists(local_path):
-            print(f"[OK] {filename} sudah ada ({os.path.getsize(local_path) / (1024*1024):.2f} MB). Lewati.")
+            print(f"[OK] {filename} already exists ({os.path.getsize(local_path) / (1024*1024):.2f} MB). Skipping.")
             continue
 
-        print(f"[*] Mendownload {filename}...")
+        print(f"[*] Downloading {filename} from Hugging Face...")
         try:
             downloaded = hf_hub_download(
                 repo_id=args.repo,
@@ -48,12 +48,12 @@ def main():
                 local_dir=target_dir,
                 local_dir_use_symlinks=False
             )
-            print(f"[OK] {filename} berhasil diunduh!")
+            print(f"[OK] {filename} successfully downloaded!")
         except Exception as e:
-            print(f"[ERROR] Gagal mendownload {filename}: {e}")
-            print("Silakan pastikan repo Hugging Face sudah dibuat dan file sudah diunggah.")
+            print(f"[ERROR] Failed to download {filename}: {e}")
+            print("Please ensure the Hugging Face repository exists and files are uploaded.")
 
-    print("\n[SELESAI] Semua bobot siap digunakan!")
+    print("\n[COMPLETE] All weights are ready for inference!")
 
 if __name__ == "__main__":
     main()

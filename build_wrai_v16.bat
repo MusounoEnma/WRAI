@@ -13,14 +13,14 @@ gcc -O3 -mavx -msse4.2 -fopenmp -Iinclude src\wrai_v16_engine.c src\wrai_v16_cli
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo =================================================================
-    echo    [SUCCESS] BUILD BERHASIL 100%%! EXECUTABLE: wrai_v16.exe      
+    echo    [SUCCESS] BUILD SUCCEEDED 100%%! EXECUTABLE: wrai_v16.exe      
     echo =================================================================
     echo.
-    echo Jalankan dengan mengetik:
+    echo Run the engine by typing:
     echo wrai_v16.exe
     echo.
 ) else (
     echo.
-    echo [ERROR] Kompilasi gagal!
+    echo [ERROR] Compilation failed!
     exit /b 1
 )

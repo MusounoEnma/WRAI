@@ -13,10 +13,10 @@ gcc -O3 -mavx -msse4.2 -fopenmp -Iinclude -Isrc src\wrai_x_engine.c src\wrai_x_c
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo =================================================================
-    echo    [SUCCESS] BUILD BERHASIL 100%%! EXECUTABLE: wrai_x.exe      
+    echo    [SUCCESS] BUILD COMPLETED SUCCESSFULLY! EXECUTABLE: wrai_x.exe      
     echo =================================================================
 ) else (
     echo.
-    echo [ERROR] Kompilasi gagal!
+    echo [ERROR] Compilation failed!
     exit /b 1
 )

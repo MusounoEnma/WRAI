@@ -19,12 +19,12 @@ static void print_banner(const wrai_x_model_t* model) {
     printf("\n=================================================================\n");
     printf("   🌊 WRAI-X (0.8B) PURE NATIVE C INFERENCE ENGINE               \n");
     printf("=================================================================\n");
-    printf(" [*] Arsitektur     : Dual-State Retention (Mt/Rt) + 4-Level Haar DWT\n");
-    printf(" [*] Dimensi Laten  : D = 1024 (2^10), FFN = 3072, 28 Layers\n");
-    printf(" [*] Parameter      : ~831 Juta (Qwen 3 0.6B Frozen Brain + WRAI-X Adapters -> 0.8B)\n");
-    printf(" [*] Kuantisasi     : INT8 Symmetric Row-wise\n");
-    printf(" [*] Hardware Target: CPU (AVX 1.0 SIMD + OpenMP)\n");
-    printf(" [*] Memory Buffer  : O(1) Constant (~14.5 MB State Buffer, 0%% KV-Cache)\n");
+    printf(" [*] Architecture   : Dual-State Retention (Mt/Rt) + 4-Level Haar DWT\n");
+    printf(" [*] Latent Dim     : D = 1024 (2^10), FFN = 3072, 28 Layers\n");
+    printf(" [*] Parameters     : ~831 Million (Qwen3-0.6B Base Brain + WRAI-X Adapters -> 0.8B-Class)\n");
+    printf(" [*] Quantization   : INT8 Symmetric Row-wise\n");
+    printf(" [*] Hardware Target: CPU (AVX 1.0 SIMD + OpenMP Multithreading)\n");
+    printf(" [*] Memory Footprint: O(1) Persistent State (~29.42 MB Buffer, Zero KV-Cache)\n");
     printf(" [*] Mapping Mode   : Zero-Heap Virtual Memory-Mapped (mmap)\n");
     printf("=================================================================\n\n");
 }
@@ -83,69 +83,69 @@ int main(int argc, char** argv) {
 
     if (!model_path || !vocab_path) {
         fprintf(stderr, "\n=================================================================\n");
-        fprintf(stderr, " [ERROR] File model atau vocabulary WRAI-X tidak ditemukan!\n");
+        fprintf(stderr, " [ERROR] WRAI-X model weights or vocabulary file not found!\n");
         fprintf(stderr, "=================================================================\n");
         if (!model_path) {
-            fprintf(stderr, " Model dicari di jalur berikut:\n");
+            fprintf(stderr, " Searched model candidates:\n");
             for (int i = 0; i < (int)(sizeof(model_candidates) / sizeof(model_candidates[0])); i++) {
                 if (model_candidates[i]) fprintf(stderr, "   - %s\n", model_candidates[i]);
             }
         }
         if (!vocab_path) {
-            fprintf(stderr, " Vocab dicari di jalur berikut:\n");
+            fprintf(stderr, " Searched vocabulary candidates:\n");
             for (int i = 0; i < (int)(sizeof(vocab_candidates) / sizeof(vocab_candidates[0])); i++) {
                 if (vocab_candidates[i]) fprintf(stderr, "   - %s\n", vocab_candidates[i]);
             }
         }
-        fprintf(stderr, "\nPastikan folder 'models x' berisi wrai_x_08b_int8.bin dan wrai_x_vocab.bin.\n");
-        fprintf(stderr, "\nTekan Enter untuk keluar...");
+        fprintf(stderr, "\nPlease ensure 'wrai_x_08b_int8.bin' and 'wrai_x_vocab.bin' are in the 'qwen' directory.\n");
+        fprintf(stderr, "\nPress Enter to exit...");
         getchar();
         return 1;
     }
 
-    printf("[*] Memuat Model WRAI-X dari: %s...\n", model_path);
+    printf("[*] Loading WRAI-X Model from: %s...\n", model_path);
     wrai_x_model_t model;
     if (!wrai_x_load_model(model_path, &model)) {
-        fprintf(stderr, "[ERROR] Gagal memuat file binary model WRAI-X (%s).\n", model_path);
-        fprintf(stderr, "\nTekan Enter untuk keluar...");
+        fprintf(stderr, "[ERROR] Failed to load WRAI-X binary model file (%s).\n", model_path);
+        fprintf(stderr, "\nPress Enter to exit...");
         getchar();
         return 1;
     }
-    printf("[OK] Model WRAI-X berhasil dimap! Ukuran file: %.2f MB\n", (double)model.file_size / (1024.0 * 1024.0));
+    printf("[OK] WRAI-X Model successfully memory-mapped! File size: %.2f MB\n", (double)model.file_size / (1024.0 * 1024.0));
 
-    printf("[*] Memuat Vocabulary Tokenizer dari: %s...\n", vocab_path);
+    printf("[*] Loading Tokenizer Vocabulary from: %s...\n", vocab_path);
     wrai_x_tokenizer_t tok;
     if (!wrai_x_load_tokenizer(vocab_path, &tok)) {
-        fprintf(stderr, "[ERROR] Gagal memuat file vocabulary binary (%s).\n", vocab_path);
+        fprintf(stderr, "[ERROR] Failed to load binary vocabulary table (%s).\n", vocab_path);
         wrai_x_free_model(&model);
-        fprintf(stderr, "\nTekan Enter untuk keluar...");
+        fprintf(stderr, "\nPress Enter to exit...");
         getchar();
         return 1;
     }
-    printf("[OK] Tokenizer Siap! Total Vocabulary: %u tokens (Index 256 Buckets aktif).\n", tok.num_tokens);
+    printf("[OK] Tokenizer Ready! Total Vocabulary: %u tokens (Active 256-bucket index).\n", tok.num_tokens);
 
     wrai_x_state_t state;
     if (!wrai_x_state_init(&state)) {
-        fprintf(stderr, "[ERROR] Gagal menginisialisasi buffer state WRAI-X.\n");
+        fprintf(stderr, "[ERROR] Failed to initialize WRAI-X recurrent state buffer.\n");
         wrai_x_free_tokenizer(&tok);
         wrai_x_free_model(&model);
-        fprintf(stderr, "\nTekan Enter untuk keluar...");
+        fprintf(stderr, "\nPress Enter to exit...");
         getchar();
         return 1;
     }
-    printf("[OK] Dual-State Memory Buffer Siap! (~14.5 MB Allocated)\n");
+    printf("[OK] Dual-State Persistent Memory Buffer Ready! (~29.42 MB Allocated)\n");
 
     print_banner(&model);
 
     float* logits = (float*)malloc((size_t)WRAI_X_VOCAB_SIZE * sizeof(float));
     char user_input[MAX_PROMPT_LEN];
 
-    printf("Ketik pertanyaanmu (atau 'exit' untuk keluar, 'reset' untuk reset konteks).\n");
-    printf("[*] Rekomendasi Pertanyaan:\n");
-    printf("    1. halo apa kabar?\n");
-    printf("    2. himpunan\n");
-    printf("    3. Siapa kamu?\n");
-    printf("    4. Buatkan fungsi Python untuk membalikkan string.\n\n");
+    printf("Enter your prompt (or type 'exit' to quit, 'reset' to clear conversation memory):\n");
+    printf("[*] Suggested Prompts:\n");
+    printf("    1. Hello! How are you?\n");
+    printf("    2. Explain your architecture and zero KV-cache mechanism.\n");
+    printf("    3. Who are you?\n");
+    printf("    4. Write a Python function to reverse a string.\n\n");
 
     while (1) {
         printf("User > ");
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
         if (strcmp(user_input, "exit") == 0) break;
         if (strcmp(user_input, "reset") == 0) {
             wrai_x_state_reset(&state);
-            printf("[*] Konteks memori percakapan telah direset!\n\n");
+            printf("[*] Conversation memory context has been reset!\n\n");
             continue;
         }
 

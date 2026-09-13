@@ -3,10 +3,10 @@
 =============================================================================
  WRAI-3B TRANSPLANT — INFERENCE BENCHMARK & INTERACTIVE CHAT STUDIO
 =============================================================================
- Evaluasi model monster WRAI-3B hasil transplantasi bobot Qwen2.5-3B (1:1):
-  - 100% 0% KV-Cache (Fixed 16 KB SRAM Ping-Pong)
-  - Full 151,936 Vocab (Zero Slicing, Bahasa Alami & Mengalir Sempurna)
-  - 24 Layer ResGRU + SwiGLU + Wavelet Spectral (2048-dim)
+ Evaluation of WRAI-3B model transplanted from Qwen2.5-3B (1:1):
+  - 100% Zero KV-Cache (Fixed 16 KB SRAM Ping-Pong)
+  - Full 151,936 Vocab (Zero Slicing, Natural & Fluent Reasoning)
+  - 24-Layer ResGRU + SwiGLU + Wavelet Spectral (2048-dim)
 =============================================================================
 """
 
@@ -352,12 +352,12 @@ def load_3b_model():
                     loaded_ckpt = True
                     break
                 except Exception as e:
-                    print(f"[WARN] Gagal memuat {p}: {e}")
+                    print(f"[WARN] Failed to load {p}: {e}")
 
     if not loaded_ckpt:
-        print("\n[!] PERINGATAN: Tidak ada file .pt ditemukan!")
-        print(f"  --> Jalur yang diperiksa: {candidate_checkpoints[:5]}")
-        print("  --> Pastikan Google Drive ter-mount dan folder /content/drive/MyDrive/WRAI_v15_3B_Models_Transplant berisi file .pt\n")
+        print("\n[!] WARNING: No .pt checkpoint files found!")
+        print(f"  --> Checked paths: {candidate_checkpoints[:5]}")
+        print("  --> Ensure Google Drive is mounted and folder /content/drive/MyDrive/WRAI_v15_3B_Models_Transplant contains .pt files\n")
 
     model.eval()
     return model, tokenizer
@@ -454,7 +454,7 @@ def run_benchmark_suite_3b(model, tokenizer):
 def interactive_chat_3b(model, tokenizer):
     print("="*70)
     print("💬 LIVE INTERACTIVE CHAT STUDIO — WRAI-3B MONSTER SCALE")
-    print("Ketik 'exit' atau 'keluar' untuk selesai")
+    print("Type 'exit' or 'quit' to end session")
     print("="*70)
 
     while True:
@@ -463,7 +463,7 @@ def interactive_chat_3b(model, tokenizer):
             if not prompt:
                 continue
             if prompt.lower() in ("exit", "keluar", "quit", "q"):
-                print("\n[👋] Sesi WRAI-3B Selesai!\n")
+                print("\n[👋] WRAI-3B Session Completed!\n")
                 break
 
             result = generate_response_3b(

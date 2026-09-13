@@ -11,6 +11,6 @@ engine\wrai_x.exe "qwen\wrai_x_08b_int8.bin" "qwen\wrai_x_vocab.bin"
 
 echo.
 echo =================================================================
-echo Program WRAI-X selesai.
+echo WRAI-X execution completed.
 echo =================================================================
 pause

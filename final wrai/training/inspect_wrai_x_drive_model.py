@@ -2,16 +2,16 @@
 =============================================================================
    🔬 WRAI-X (0.8B) FORENSIC DEEP-INSPECTION & ZERO KV-CACHE AUDIT TOOL
 =============================================================================
- Skrip Diagnostik Mandiri (Self-Contained) untuk Google Colab / CLI:
- 1. Pemeriksaan Fisik File di Google Drive (/MyDrive/WRAI_X_08B)
- 2. Forensik Binary C INT8 (wrai_x_08b_int8.bin): Header, Integritas Byte,
-    Distribusi Kuantisasi, Parameter Per-Layer.
- 3. Forensik Checkpoint PyTorch (wrai_x_08b_transplanted.pt): Parameter,
-    LoRA Merge Status, Weight Tying.
- 4. Forensik Tokenizer Binary (wrai_x_vocab.bin): Token Nalar (<think>, </think>)
- 5. BUKTI EMPIRIS & MATEMATIS "ZERO KV-CACHE":
-    - Pengukuran live alokasi VRAM & State Tensor step-by-step
-    - Pembuktian komputasi O(1) Memory vs O(T) Transformer KV-Cache
+ Self-contained diagnostic script for Google Colab / Native CLI:
+ 1. Physical file presence verification in Google Drive (/MyDrive/WRAI_X_08B)
+ 2. Native C INT8 Binary Forensic (wrai_x_08b_int8.bin): Header metadata, byte integrity,
+    quantization distribution, per-layer weight inspection.
+ 3. PyTorch Checkpoint Forensic (wrai_x_08b_transplanted.pt): Parameter sanity,
+    LoRA merge status, weight tying pointers.
+ 4. Binary Tokenizer Forensic (wrai_x_vocab.bin): Reasoning tokens (<think>, </think>)
+ 5. EMPIRICAL & MATHEMATICAL ZERO KV-CACHE PROOF:
+    - Step-by-step VRAM allocation & recurrent state tensor monitoring
+    - Proof of constant O(1) Memory complexity vs O(T) Transformer KV-Cache
 =============================================================================
 """
 
@@ -23,7 +23,7 @@ import struct
 import argparse
 import numpy as np
 
-# Pastikan UTF-8 encoding di Windows console maupun Linux/Colab
+# Ensure UTF-8 console output in Windows, Linux, and Colab
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -36,7 +36,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # -----------------------------------------------------------------------------
-# 0. Konstanta & Konfigurasi Arsitektur WRAI-X (0.8B)
+# 0. WRAI-X (0.8B) Architecture Constants & Configuration
 # -----------------------------------------------------------------------------
 MAGIC_HEADER = 0x57524149  # "WRAI"
 VERSION = 171
@@ -55,7 +55,7 @@ FALLBACK_LOCAL_DIR = "."
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # -----------------------------------------------------------------------------
-# 1. Definisi Arsitektur Model WRAI-X (Untuk Live Profiling)
+# 1. WRAI-X Model Architecture Definition (For Live Profiling)
 # -----------------------------------------------------------------------------
 class RMSNorm(nn.Module):
     def __init__(self, dim, eps=1e-6):
@@ -292,11 +292,12 @@ class WRAIX06BModel(nn.Module):
         return logits, new_states
 
 # -----------------------------------------------------------------------------
-# 2. Modul 1: Deteksi File di Google Drive / Direktori Lokal
+# -----------------------------------------------------------------------------
+# 2. Module 1: File Detection in Google Drive / Local Directory
 # -----------------------------------------------------------------------------
 def locate_files(target_dir):
     print("\n" + "=" * 70)
-    print(" 📂 MODUL 1: VERIFIKASI LOKASI FILE & DIREKTORI DRIVE")
+    print(" 📂 MODULE 1: FILE PRESENCE & DIRECTORY RESOLUTION")
     print("=" * 70)
 
     resolved_dir = None
@@ -316,10 +317,10 @@ def locate_files(target_dir):
                 break
 
     if resolved_dir is None:
-        print(f"[!] Direktori target tidak ditemukan. Mencoba path default: {target_dir}")
+        print(f"[!] Target directory not found. Trying default path: {target_dir}")
         resolved_dir = target_dir
 
-    print(f"[*] Direktori Terpilih : {os.path.abspath(resolved_dir)}")
+    print(f"[*] Resolved Directory : {os.path.abspath(resolved_dir)}")
 
     files_to_check = [
         ("Binary INT8 C", "wrai_x_08b_int8.bin"),
@@ -329,7 +330,7 @@ def locate_files(target_dir):
 
     found_map = {}
     print("\n" + "-" * 70)
-    print(f"{'Nama Komponen':<25} | {'Status':<10} | {'Ukuran (MB)':<12} | {'File Path'}")
+    print(f"{'Component Name':<25} | {'Status':<10} | {'Size (MB)':<12} | {'File Path'}")
     print("-" * 70)
 
     for desc, fname in files_to_check:
@@ -337,36 +338,36 @@ def locate_files(target_dir):
         if os.path.exists(full_p):
             sz_mb = os.path.getsize(full_p) / 1e6
             sz_b = os.path.getsize(full_p)
-            print(f"{desc:<25} | {'ADA (OK)':<10} | {sz_mb:>10.2f} MB | {fname}")
+            print(f"{desc:<25} | {'PRESENT':<10} | {sz_mb:>10.2f} MB | {fname}")
             found_map[fname] = (full_p, sz_b)
         else:
-            print(f"{desc:<25} | {'HILANG':<10} | {'--':>10}    | {fname}")
+            print(f"{desc:<25} | {'MISSING':<10} | {'--':>10}    | {fname}")
             found_map[fname] = (None, 0)
     print("-" * 70)
 
     return resolved_dir, found_map
 
 # -----------------------------------------------------------------------------
-# 3. Modul 2: Deep Forensic Binary INT8 C (wrai_x_08b_int8.bin)
+# 3. Module 2: Deep Forensic Binary INT8 C (wrai_x_08b_int8.bin)
 # -----------------------------------------------------------------------------
 def inspect_binary_int8(bin_path):
     print("\n" + "=" * 70)
-    print(" 🔬 MODUL 2: FORENSIK BINARY C INT8 (wrai_x_08b_int8.bin)")
+    print(" 🔬 MODULE 2: NATIVE C INT8 BINARY FORENSIC (wrai_x_08b_int8.bin)")
     print("=" * 70)
 
     if not bin_path or not os.path.exists(bin_path):
-        print(f"[!] File binary {bin_path} tidak ditemukan. Melewati Modul 2.")
+        print(f"[!] Binary file {bin_path} not found. Skipping Module 2.")
         return
 
     file_size = os.path.getsize(bin_path)
-    print(f"[*] Memeriksa file binary: {bin_path}")
-    print(f"[*] Ukuran total di disk: {file_size:,} bytes ({file_size / 1e6:.2f} MB / {file_size / (1024**3):.3f} GB)")
+    print(f"[*] Inspecting binary file: {bin_path}")
+    print(f"[*] Total on-disk size: {file_size:,} bytes ({file_size / 1e6:.2f} MB / {file_size / (1024**3):.3f} GB)")
 
     with open(bin_path, "rb") as f:
         # 1. Header Unpack (60 Bytes)
         header_raw = f.read(60)
         if len(header_raw) < 60:
-            print("[FATAL] Header binary rusak atau terpotong (< 60 bytes)!")
+            print("[FATAL] Binary header corrupted or truncated (< 60 bytes)!")
             return
 
         unpacked = struct.unpack("<11If12s", header_raw)
@@ -472,12 +473,12 @@ def inspect_binary_int8(bin_path):
 
         layer_0_end_pos = f.tell()
         layer_0_size = layer_0_end_pos - (60 + vocab_size * 4 + vocab_size * hidden_dim)
-        print(f"  • Ukuran 1 Layer Penuh: {layer_0_size:,} bytes ({layer_0_size / 1e6:.2f} MB)")
+        print(f"  • Full Layer 0 Size  : {layer_0_size:,} bytes ({layer_0_size / 1e6:.2f} MB)")
 
         # 4. Skip to Layer 27 & Final Norm
-        print("\n--- [D. Verifikasi Integritas Seluruh 28 Layer] ---")
+        print("\n--- [D. Full 28-Layer Integrity Verification] ---")
         f.seek(60 + vocab_size * 4 + vocab_size * hidden_dim + (num_layers - 1) * layer_0_size)
-        print(f"  • Memeriksa Layer Terakhir (Layer 27)... [OK Posisi Sinkron]")
+        print(f"  • Inspecting Final Layer (Layer 27)... [OK Synchronized Position]")
 
         # Skip Layer 27
         f.seek(layer_0_size, os.SEEK_CUR)
@@ -488,38 +489,38 @@ def inspect_binary_int8(bin_path):
             final_norm_w = np.frombuffer(final_norm_bytes, dtype=np.float32)
             print(f"  • Final RMSNorm Weight: Norm={np.linalg.norm(final_norm_w):.4f} -> [OK]")
         else:
-            print("[!] Final Norm terpotong!")
+            print("[!] Final Norm truncated!")
 
         # 5. Check Exact End-of-File
         current_pos = f.tell()
         remaining_bytes = file_size - current_pos
 
-        print("\n--- [E. Status Integritas Byte Level] ---")
-        print(f"  • Posisi Pembacaan   : {current_pos:,} bytes")
-        print(f"  • Ukuran File Asli   : {file_size:,} bytes")
-        print(f"  • Selisih (Trailing) : {remaining_bytes} bytes")
+        print("\n--- [E. Byte-Level Integrity Status] ---")
+        print(f"  • File Read Pointer  : {current_pos:,} bytes")
+        print(f"  • File Disk Size     : {file_size:,} bytes")
+        print(f"  • Delta (Trailing)   : {remaining_bytes} bytes")
         if remaining_bytes == 0:
-            print("  • STATUS INTEGRITAS  : 100.0% PERSIS DAN SEMPURNA (TIDAK ADA BYTE HILANG / KORUP)!")
+            print("  • INTEGRITY STATUS   : 100.0% EXACT & PERFECT (NO MISSING / CORRUPT BYTES)!")
         else:
-            print(f"  • STATUS INTEGRITAS  : PERINGATAN! Ada selisih {remaining_bytes} bytes.")
+            print(f"  • INTEGRITY STATUS   : WARNING! Trailing mismatch of {remaining_bytes} bytes.")
 
 # -----------------------------------------------------------------------------
-# 4. Modul 3: Forensik Checkpoint PyTorch (wrai_x_08b_transplanted.pt)
+# 4. Module 3: PyTorch Checkpoint Forensic (wrai_x_08b_transplanted.pt)
 # -----------------------------------------------------------------------------
 def inspect_pytorch_checkpoint(pt_path):
     print("\n" + "=" * 70)
-    print(" 📦 MODUL 3: FORENSIK CHECKPOINT PYTORCH (.pt)")
+    print(" 📦 MODULE 3: PYTORCH CHECKPOINT FORENSIC (.pt)")
     print("=" * 70)
 
     if not pt_path or not os.path.exists(pt_path):
-        print(f"[!] File checkpoint {pt_path} tidak ditemukan. Melewati Modul 3.")
+        print(f"[!] Checkpoint file {pt_path} not found. Skipping Module 3.")
         return None
 
-    print(f"[*] Memuat PyTorch State Dict: {pt_path}...")
+    print(f"[*] Loading PyTorch State Dict: {pt_path}...")
     t0 = time.time()
     sd = torch.load(pt_path, map_location="cpu", weights_only=True)
     load_time = time.time() - t0
-    print(f"[OK] Checkpoint dimuat dalam {load_time:.2f} detik.")
+    print(f"[OK] Checkpoint loaded in {load_time:.2f} seconds.")
 
     total_tensors = len(sd)
     total_params = 0
@@ -532,15 +533,15 @@ def inspect_pytorch_checkpoint(pt_path):
         type_counts[dt] = type_counts.get(dt, 0) + 1
         total_params += v.numel()
 
-    print(f"\n--- [A. Ringkasan Parameter Checkpoint] ---")
-    print(f"  • Total Tensors Key  : {total_tensors} keys")
-    print(f"  • Total Parameter    : {total_params:,} ({total_params / 1e6:.2f}M)")
-    print(f"  • Distribusi Tipe Data:")
+    print(f"\n--- [A. Checkpoint Parameter Summary] ---")
+    print(f"  • Total Tensor Keys  : {total_tensors} keys")
+    print(f"  • Total Parameters   : {total_params:,} ({total_params / 1e6:.2f}M)")
+    print(f"  • Dtype Distribution :")
     for dt, count in type_counts.items():
         print(f"      - {dt:<15}: {count} tensors")
 
-    print(f"\n--- [B. Audit Penggabungan LoRA & Weight Tying] ---")
-    print(f"  • LoRA Keys Sisa     : {len(lora_keys)} -> {'BERSIH 100% (LoRA Melebur ke Bobot Murni)' if len(lora_keys) == 0 else 'Ada sisa LoRA!'}")
+    print(f"\n--- [B. LoRA Merge & Weight Tying Audit] ---")
+    print(f"  • Residual LoRA Keys : {len(lora_keys)} -> {'100% CLEAN (LoRA merged into base weights)' if len(lora_keys) == 0 else 'Residual LoRA found!'}")
     print(f"  • Output Proj Tied   : {len(tied_keys)} keys (Tied pointers)")
     if "embed.weight" in sd:
         emb_shape = list(sd["embed.weight"].shape)
@@ -549,63 +550,56 @@ def inspect_pytorch_checkpoint(pt_path):
     return sd
 
 # -----------------------------------------------------------------------------
-# 5. Modul 4: BUKTI EMPIRIS & MATEMATIS "ZERO KV-CACHE"
+# 5. Module 4: EMPIRICAL & MATHEMATICAL ZERO KV-CACHE AUDIT
 # -----------------------------------------------------------------------------
 def audit_zero_kv_cache(model_inst=None, sd=None):
     print("\n" + "=" * 70)
-    print(" 🚀 MODUL 4: BUKTI EMPIRIS & MATEMATIS 'ZERO KV-CACHE'")
+    print(" 🚀 MODULE 4: EMPIRICAL & MATHEMATICAL ZERO KV-CACHE AUDIT")
     print("=" * 70)
 
-    # 1. Analisis Matematika & Komparasi Teoretis
-    print("--- [A. Formulasi Matematika: Transformer Attention vs WRAI-X Dual-State] ---")
+    # 1. Mathematical Formulation & Theoretical Comparison
+    print("--- [A. Mathematical Formulation: Transformer Attention vs WRAI-X Dual-State] ---")
     print("""
   1. Standard Transformer Attention (KV-Cache):
      Attention(Q, K, V) = Softmax(Q K^T / √d) V
-     -> Memerlukan seluruh matriks K dan V dari token t_1 sampai t_T disimpan di memori.
-     -> Ukuran KV-Cache(T) = 2 x NumLayers x Batch x NumHeads x HeadDim x T x sizeof(dtype)
-     -> Kompleksitas Memori: O(T) LINEAR! Semakin panjang konteks, VRAM habis.
+     -> Requires entire history matrices K and V from token t_1 to t_T stored in memory.
+     -> KV-Cache Size(T) = 2 x NumLayers x Batch x NumHeads x HeadDim x T x sizeof(dtype)
+     -> Memory Complexity: O(T) LINEAR! VRAM expands continuously until OOM.
 
   2. WRAI-X Dual-State Retention (Zero KV-Cache):
      Recurrent State Memory:    M_t = γ_m · M_{t-1} + (K_t^T · V_t)
      Recurrent State Reasoning: R_t = γ_r · R_{t-1} + (K_{r,t}^T · V_{r,t})
      Output:                    Y_t = Q_t · M_t
-     -> Ukuran State M_t = [Batch, NumHeads, HeadDim, HeadDim] (FIXED / KONSTAN).
-     -> TIDAK ADA dimensi sekuens 'T' pada M_t maupun R_t!
-     -> Kompleksitas Memori: O(1) KONSTAN! Panjang konteks 1 atau 100,000 token,
-        alokasi memori RAM/VRAM PERSIS SAMA.
+     -> State Size M_t = [Batch, NumHeads, HeadDim, HeadDim] (FIXED / CONSTANT).
+     -> ZERO sequence dimension 'T' exists in M_t or R_t!
+     -> Memory Complexity: O(1) CONSTANT! Context length 1 or 100,000 tokens,
+        RAM/VRAM memory allocation remains STRICTLY IDENTICAL.
     """)
 
-    # Tabel Perbandingan Memori
-    print("--- [B. Tabel Perbandingan Kebutuhan Memori State (Batch Size = 1, FP16)] ---")
+    # Memory Comparison Table
+    print("--- [B. State Memory Requirement Comparison Table (Batch Size = 1, FP16)] ---")
     print("-" * 75)
-    print(f"{'Panjang Sekuens (T)':<22} | {'Standard Transformer KV':<25} | {'WRAI-X State (M_t+R_t)':<22}")
+    print(f"{'Sequence Length (T)':<22} | {'Standard Transformer KV':<25} | {'WRAI-X State (M_t+R_t)':<22}")
     print("-" * 75)
 
-    # WRAI-X Constant State Size
-    # M_t: 1 x 16 x 128 x 128 x 2 bytes = 524,288 bytes (0.524 MB)
-    # R_t: 1 x 16 x 128 x 128 x 2 bytes = 524,288 bytes (0.524 MB)
-    # HDC: 1 x 1024 x 2 bytes = 2,048 bytes (0.002 MB)
-    # Total per layer: 1.050 MB
-    # Total 28 layers: 29.41 MB
     wrai_state_mb = (2 * NUM_HEADS * HEAD_DIM * HEAD_DIM * 2 + HIDDEN_DIM * 2) * NUM_LAYERS / 1e6
 
     seq_lengths = [1, 128, 512, 2048, 8192, 32768, 131072]
     for sl in seq_lengths:
-        # Transformer KV-Cache = 2 * L * H * HD * sl * 2 bytes
         tf_kv_mb = (2 * NUM_LAYERS * NUM_HEADS * HEAD_DIM * sl * 2) / 1e6
         tf_str = f"{tf_kv_mb:.2f} MB" if tf_kv_mb < 1000 else f"{tf_kv_mb / 1000:.2f} GB"
         if tf_kv_mb > 15000:
-            tf_str += " (OOM di T4!)"
-        print(f"{sl:>10,} Tokens          | {tf_str:<25} | {wrai_state_mb:.2f} MB (KONSTAN O(1))")
+            tf_str += " (OOM on T4!)"
+        print(f"{sl:>10,} Tokens          | {tf_str:<25} | {wrai_state_mb:.2f} MB (CONSTANT O(1))")
     print("-" * 75)
 
     # 2. Live Step-by-Step Generation Profiling
     total_steps = 50 if DEVICE.type == "cuda" else 5
-    print(f"\n--- [C. Pengujian Empiris Live Profiler Autoregresif ({total_steps} Langkah)] ---", flush=True)
+    print(f"\n--- [C. Empirical Autoregressive Live Profiling ({total_steps} Steps)] ---", flush=True)
 
     if model_inst is None:
         if sd is not None:
-            print("[*] Menginisialisasi Model WRAI-X 0.8B dengan bobot Checkpoint...", flush=True)
+            print("[*] Initializing WRAI-X 0.8B Model with Checkpoint weights...", flush=True)
             model_inst = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
             model_inst = model_inst.to(DEVICE).to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
 
@@ -621,24 +615,22 @@ def audit_zero_kv_cache(model_inst=None, sd=None):
                     if k_r not in sd and k_b in sd:
                         sd[k_r] = sd[k_b]
             model_inst.load_state_dict(sd, strict=False)
-            print("[OK] Bobot checkpoint berhasil dipasang ke live model.", flush=True)
+            print("[OK] Checkpoint weights successfully loaded into live model.", flush=True)
         else:
-            # Model uji cepat jika tidak ada checkpoint
             sim_layers = NUM_LAYERS if DEVICE.type == "cuda" else 2
             sim_vocab = VOCAB_SIZE if DEVICE.type == "cuda" else 1000
-            print(f"[*] Tidak ada checkpoint. Membuat model arsitektur uji ({sim_layers} Layer, Device: {DEVICE})...", flush=True)
+            print(f"[*] No checkpoint found. Constructing test model ({sim_layers} Layers, Device: {DEVICE})...", flush=True)
             model_inst = WRAIX06BModel(vocab_size=sim_vocab, num_layers=sim_layers, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
             model_inst = model_inst.to(DEVICE).to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
 
     model_inst.eval()
 
-    # Eksekusi langkah forward_step untuk mengamati memori
     states = None
-    input_tok = torch.tensor([0], device=DEVICE) # (1D tensor shape [1])
+    input_tok = torch.tensor([0], device=DEVICE)
 
     initial_vram = torch.cuda.memory_allocated(DEVICE) / 1e6 if DEVICE.type == "cuda" else 0.0
 
-    print(f"{'Langkah (Step)':<15} | {'Bentuk Tensor State (M_t)':<28} | {'Ukuran State RAM':<18} | {'Δ VRAM GPU'}", flush=True)
+    print(f"{'Step':<15} | {'State Tensor Shape (M_t)':<28} | {'RAM State Size':<18} | {'Δ GPU VRAM'}", flush=True)
     print("-" * 75, flush=True)
 
     profile_steps = [1, 2, 5, 10, 20, 30, 40, 50] if total_steps == 50 else list(range(1, total_steps + 1))
@@ -646,11 +638,10 @@ def audit_zero_kv_cache(model_inst=None, sd=None):
     with torch.no_grad():
         for step in range(1, total_steps + 1):
             logits, states = model_inst.forward_step(input_tok, states)
-            next_tok = torch.argmax(logits, dim=-1) # shape [1]
+            next_tok = torch.argmax(logits, dim=-1)
             input_tok = next_tok
 
             if step in profile_steps:
-                # Ukur ukuran tensor state
                 total_state_bytes = 0
                 for sm, sr, shdc, pos in states:
                     total_state_bytes += (sm.nelement() * sm.element_size())
@@ -666,41 +657,41 @@ def audit_zero_kv_cache(model_inst=None, sd=None):
                 print(f"Step {step:<10} | {m_shape_str:<28} | {state_mb:>8.2f} MB        | {delta_vram:>+6.2f} MB")
 
     print("-" * 75)
-    print("\n--- [D. KESIMPULAN AUDIT ZERO KV-CACHE] ---")
+    print("\n--- [D. ZERO KV-CACHE AUDIT CONCLUSION] ---")
     print("""
-  [VERIFIKASI SAH 100% SUKSES]:
-  1. Bukti Arsitektur: State M_t dan R_t adalah tensor tetap berukuran [1, 16, 128, 128].
-     TIDAK ADA array yang membesar seiring bertambahnya token (NO append/concat).
-  2. Bukti Empiris: Ukuran memori state dari Step 1 hingga Step 50 tetap persis sama (~29.4 MB).
-  3. Klaim 'Zero KV-Cache' adalah 100% VALID SECARA ILMIAH DAN MATEMATIS!
+  [100% VALIDATED & EMPIRICALLY CONFIRMED]:
+  1. Architectural Proof: Recurrent states M_t and R_t are fixed tensors of shape [1, 16, 128, 128].
+     NO arrays grow with token count (zero concatenation, zero history buffering).
+  2. Empirical Proof: State memory size from Step 1 through Step 50 remains strictly flat (~29.4 MB).
+  3. The 'Zero KV-Cache' claim is 100% SCIENTIFICALLY AND MATHEMATICALLY VALID!
     """)
 
 # -----------------------------------------------------------------------------
-# 6. Modul 5: Forensik Tokenizer Binary (wrai_x_vocab.bin)
+# 6. Module 5: Tokenizer Binary Forensic (wrai_x_vocab.bin)
 # -----------------------------------------------------------------------------
 def inspect_vocab_bin(vocab_path):
     print("\n" + "=" * 70)
-    print(" 📖 MODUL 5: FORENSIK TOKENIZER VOCABULARY (wrai_x_vocab.bin)")
+    print(" 📖 MODULE 5: TOKENIZER VOCABULARY FORENSIC (wrai_x_vocab.bin)")
     print("=" * 70)
 
     if not vocab_path or not os.path.exists(vocab_path):
-        print(f"[!] File vocab {vocab_path} tidak ditemukan. Melewati Modul 5.")
+        print(f"[!] Vocab file {vocab_path} not found. Skipping Module 5.")
         return
 
     file_size = os.path.getsize(vocab_path)
-    print(f"[*] Memeriksa file vocab: {vocab_path} ({file_size / 1e6:.2f} MB)")
+    print(f"[*] Inspecting vocab file: {vocab_path} ({file_size / 1e6:.2f} MB)")
 
     with open(vocab_path, "rb") as f:
         header_raw = f.read(8)
         if len(header_raw) < 8:
-            print("[!] Header vocab corrupt!")
+            print("[!] Corrupted vocab header!")
             return
         num_tokens, max_token_len = struct.unpack("<II", header_raw)
 
-        print(f"  • Total Tokens Terdaftar : {num_tokens:,}")
+        print(f"  • Total Registered Tokens: {num_tokens:,}")
         print(f"  • Max Token Length       : {max_token_len} bytes")
 
-        # Cek token reasoning penting
+        # Verify critical reasoning tokens
         target_token_ids = {
             151644: "<|im_start|>",
             151645: "<|im_end|>",
@@ -718,21 +709,21 @@ def inspect_vocab_bin(vocab_path):
             if tid in target_token_ids:
                 read_tokens[tid] = tok_str
 
-        print("\n  • Verifikasi Token Spesial Siklus Nalar:")
+        print("\n  • Reasoning Cycle Special Token Verification:")
         for tid, expected in target_token_ids.items():
             actual = read_tokens.get(tid, "<NOT_FOUND>")
             match = "MATCH (OK)" if actual == expected else "MISMATCH"
-            print(f"      - ID {tid:<6}: '{actual}' (Diharapkan: '{expected}') -> {match}")
+            print(f"      - ID {tid:<6}: '{actual}' (Expected: '{expected}') -> {match}")
 
 # -----------------------------------------------------------------------------
 # 7. Main Function & CLI Entry Point
 # -----------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="WRAI-X Forensic Deep-Inspection & Zero KV-Cache Audit Tool")
-    parser.add_argument("--model_dir", type=str, default=DEFAULT_DRIVE_DIR, help="Direktori model di Google Drive atau lokal")
-    parser.add_argument("--skip_profile", action="store_true", help="Lewati live forward profiling")
+    parser.add_argument("--model_dir", type=str, default=DEFAULT_DRIVE_DIR, help="Model directory in Google Drive or local filesystem")
+    parser.add_argument("--skip_profile", action="store_true", help="Skip live forward profiling")
 
-    # Gunakan parse_known_args() agar kebal terhadap flag Jupyter/Colab (-f ...)
+    # Use parse_known_args() for Jupyter/Colab argument resilience (-f ...)
     args, unknown = parser.parse_known_args()
 
     print("""
@@ -744,32 +735,32 @@ def main():
 =============================================================================
     """)
 
-    # 1. Lokalisasi File
+    # 1. Locate Files
     resolved_dir, found_map = locate_files(args.model_dir)
 
     bin_path = found_map.get("wrai_x_08b_int8.bin", (None, 0))[0]
     pt_path = found_map.get("wrai_x_08b_transplanted.pt", (None, 0))[0]
     vocab_path = found_map.get("wrai_x_vocab.bin", (None, 0))[0]
 
-    # 2. Forensik Binary C INT8
+    # 2. Binary C INT8 Forensic
     if bin_path:
         inspect_binary_int8(bin_path)
 
-    # 3. Forensik Checkpoint PyTorch
+    # 3. PyTorch Checkpoint Forensic
     sd = None
     if pt_path:
         sd = inspect_pytorch_checkpoint(pt_path)
 
-    # 4. Forensik Tokenizer Binary
+    # 4. Tokenizer Binary Forensic
     if vocab_path:
         inspect_vocab_bin(vocab_path)
 
-    # 5. Audit Zero KV-Cache (Matematika & Live Profiling)
+    # 5. Zero KV-Cache Audit (Mathematical & Live Profiling)
     if not args.skip_profile:
         audit_zero_kv_cache(model_inst=None, sd=sd)
 
     print("\n" + "=" * 70)
-    print(" 🎉 FORENSIK LENGKAP WRAI-X SELESAI DENGAN STATUS 100% VALID!")
+    print(" 🎉 WRAI-X COMPLETE FORENSIC AUDIT FINISHED WITH 100% VALID STATUS!")
     print("======================================================================\n")
 
 if __name__ == "__main__":

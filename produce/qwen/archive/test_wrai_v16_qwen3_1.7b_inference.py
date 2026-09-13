@@ -3,9 +3,9 @@
 =============================================================================
   WRAI v16 (1.7B) — INFERENCE & BILINGUAL BENCHMARK STUDIO
 =============================================================================
- Fitur:
+ Features:
   - 1:1 Qwen 3 (1.7B) Transplanted Architecture (28 Layers, 2048 Dim, 6144 FFN)
-  - Fixed 2 MB Memory Buffer Budget (O(1) Recurrent State, 99.9% Lebih Ringan)
+  - Fixed 2 MB Memory Buffer Budget (O(1) Recurrent State, 99.9% lighter)
   - Wavelet Spectral Mixer & Multi-Head Retention
   - Fast Single File Loader (~2.4 GB Checkpoint)
   - Bilingual Benchmark Suite (English & Indonesian)
@@ -233,7 +233,7 @@ def load_17b_model():
     try:
         tokenizer = AutoTokenizer.from_pretrained(active_model_name, token=HF_TOKEN, trust_remote_code=True)
     except Exception as e:
-        print(f"[WARN] Gagal memuat tokenizer {active_model_name} ({e}). Menggunakan {FALLBACK_MODEL_NAME}...")
+        print(f"[WARN] Failed to load tokenizer {active_model_name} ({e}). Falling back to {FALLBACK_MODEL_NAME}...")
         active_model_name = FALLBACK_MODEL_NAME
         tokenizer = AutoTokenizer.from_pretrained(active_model_name, token=HF_TOKEN, trust_remote_code=True)
 
@@ -293,7 +293,7 @@ def load_17b_model():
             print(f"[WARN] Failed to load {p}: {e}")
 
     if not loaded_ckpt:
-        print("\n[!] PERINGATAN: Tidak ada file .pt ditemukan. Menjalankan model dalam mode inisialisasi awal.")
+        print("\n[!] WARNING: No .pt checkpoint files found. Running model in initial random state.")
 
     model.eval()
     return model, tokenizer
@@ -323,7 +323,7 @@ def generate_response_17b(model, tokenizer, prompt: str, max_new_tokens: int = 1
             logits, _ = model(cur_seq)
             next_logits = logits[0, -1, :].clone()
 
-            # Cegah model memuntahkan token EOS terlalu dini (sebelum min_new_tokens terpenuhi)
+            # Prevent model from emitting EOS tokens prematurely (before min_new_tokens is met)
             if step < min_new_tokens:
                 for eid in eos_ids:
                     if eid is not None and eid < next_logits.size(0):
@@ -416,7 +416,7 @@ def run_benchmark_suite_17b(model, tokenizer):
 def interactive_chat_17b(model, tokenizer):
     print("="*70)
     print("💬 LIVE INTERACTIVE CHAT STUDIO — WRAI v16 (1.7B PARAMETERS)")
-    print("Ketik 'exit' atau 'keluar' untuk selesai")
+    print("Type 'exit' or 'quit' to end session")
     print("="*70)
 
     while True:
@@ -425,7 +425,7 @@ def interactive_chat_17b(model, tokenizer):
             if not prompt:
                 continue
             if prompt.lower() in ("exit", "keluar", "quit", "q"):
-                print("\n[👋] Sesi WRAI v16 Selesai!\n")
+                print("\n[👋] WRAI v16 Session Completed!\n")
                 break
 
             result = generate_response_17b(
@@ -435,7 +435,7 @@ def interactive_chat_17b(model, tokenizer):
             print(f"\033[1;36mWRAI v16:\033[0m {result['response']}")
             print(f"\033[90m({result['tokens']} tokens | {result['speed']:.1f} tok/s | {result['elapsed']:.2f}s)\033[0m")
         except (KeyboardInterrupt, EOFError):
-            print("\n[👋] Sesi selesai.")
+            print("\n[👋] Session ended.")
             break
 
 def main():

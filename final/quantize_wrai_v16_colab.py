@@ -2,14 +2,14 @@
 =============================================================================
    🚀 WRAI v16 (1.7B) DIRECT QUANTIZER & NATIVE C BINARY PACKER
 =============================================================================
- Fitur Utama:
- 1. Auto-Mount Google Drive & deteksi otomatis checkpoint (best / epoch 1).
- 2. Pilihan Kuantisasi Fleksibel:
-    - "int8" : ~1.84 GB (Rekomendasi Emas! Presisi 100% loss-less, zero akurasi drop).
-    - "int4" : ~1.03 GB (Super Ramping! Download super cepat, RAM ~1.1 GB di laptop).
- 3. Streaming Layer-by-Layer (Hemat RAM Colab, 100% Bebas Crash OOM).
- 4. Ekspor Otomatis Tokenizer Binary (wrai_v16_vocab.bin) untuk C Engine lokal.
- 5. Verifikasi Header & Integritas File Binary setelah selesai.
+ Key Features:
+ 1. Auto-Mount Google Drive & automated checkpoint detection (best / epoch 1).
+ 2. Flexible Quantization Modes:
+    - "int8" : ~1.84 GB (Recommended! High precision loss-less, zero accuracy drop).
+    - "int4" : ~1.03 GB (Super compact! Fast download, ~1.1 GB RAM footprint).
+ 3. Streaming Layer-by-Layer (Memory-efficient Colab packaging, 100% OOM crash-free).
+ 4. Automatic Tokenizer Binary Export (wrai_v16_vocab.bin) for local native C engine.
+ 5. Binary file header & integrity verification upon completion.
 =============================================================================
 """
 
@@ -56,13 +56,13 @@ VOCAB_SIZE = 151936
 # =============================================================================
 def ensure_google_drive():
     if os.path.exists("/content") and not os.path.exists("/content/drive/MyDrive"):
-        print("[*] Google Drive belum termount. Memulai mounting...", flush=True)
+        print("[*] Google Drive not mounted. Initiating mount...", flush=True)
         try:
             from google.colab import drive
             drive.mount('/content/drive')
-            print("[OK] Google Drive berhasil dimount!\n", flush=True)
+            print("[OK] Google Drive mounted successfully!\n", flush=True)
         except Exception as e:
-            print(f"[WARN] Gagal mount Google Drive otomatis: {e}\n", flush=True)
+            print(f"[WARN] Failed to auto-mount Google Drive: {e}\n", flush=True)
 
 # =============================================================================
 # 3. FUNGSI KUANTISASI TENSOR
@@ -128,14 +128,14 @@ def quantize_blockwise_int4(tensor, block_size=32):
     return scales_fp16.flatten(), packed_bytes.flatten(), orig_shape
 
 # =============================================================================
-# 4. EKSPOR TOKENIZER KE BINARY C FORMAT (wrai_v16_vocab.bin)
+# 4. EXPORT TOKENIZER TO BINARY C FORMAT (wrai_v16_vocab.bin)
 # =============================================================================
 def export_tokenizer_vocab_bin(output_path):
-    print(f"[*] Mengekspor Tokenizer Vocabulary ke format C Native: {output_path}...", flush=True)
+    print(f"[*] Exporting Tokenizer Vocabulary to native C format: {output_path}...", flush=True)
     try:
         tok = AutoTokenizer.from_pretrained(QWEN_MODEL_NAME, trust_remote_code=True)
     except Exception:
-        print(f"[WARN] Gagal memuat {QWEN_MODEL_NAME}, beralih ke {FALLBACK_TOKENIZER}...")
+        print(f"[WARN] Failed to load {QWEN_MODEL_NAME}, falling back to {FALLBACK_TOKENIZER}...")
         tok = AutoTokenizer.from_pretrained(FALLBACK_TOKENIZER, trust_remote_code=True)
 
     vocab = tok.get_vocab()
@@ -143,7 +143,7 @@ def export_tokenizer_vocab_bin(output_path):
     if num_tokens < VOCAB_SIZE:
         num_tokens = VOCAB_SIZE
 
-    # Urutkan berdasarkan ID token (0 .. num_tokens-1)
+    # Sort by token ID (0 .. num_tokens-1)
     id_to_token = {}
     for token_str, token_id in vocab.items():
         id_to_token[token_id] = token_str
@@ -162,7 +162,7 @@ def export_tokenizer_vocab_bin(output_path):
             f.write(struct.pack("<H", token_len))
             f.write(token_bytes[:token_len])
 
-    print(f"[OK SUCCESS] Vocabulary Binary Siap: {output_path} ({num_tokens:,} tokens, {os.path.getsize(output_path)/(1024*1024):.2f} MB)\n", flush=True)
+    print(f"[OK SUCCESS] Binary Vocabulary Ready: {output_path} ({num_tokens:,} tokens, {os.path.getsize(output_path)/(1024*1024):.2f} MB)\n", flush=True)
 
 # =============================================================================
 # 5. STREAMING QUANTIZATION & PACKING UTAMA
@@ -171,12 +171,12 @@ def main():
     print("=" * 70)
     print("   🚀 WRAI v16 (1.7B) DIRECT QUANTIZER & BINARY PACKER FOR C ENGINE   ")
     print("=" * 70)
-    print(f"[*] Mode Kuantisasi Dipilih : {QUANT_MODE.upper()}")
-    print(f"[*] Target Hardware         : AMD A8 Puma+ (8GB RAM, AVX 1.0 SIMD)\n")
+    print(f"[*] Selected Quantization Mode : {QUANT_MODE.upper()}")
+    print(f"[*] Target Architecture       : Native C / SIMD\n")
 
     ensure_google_drive()
 
-    # Cari Checkpoint terbaik di Drive atau Lokal
+    # Search for best Checkpoint in Drive or Local
     candidate_paths = [
         os.path.join(DRIVE_DIR, "wrai_v16_1.7b_best.pt"),
         os.path.join(DRIVE_DIR, "wrai_v16_1.7b_epoch_1.pt"),
@@ -192,32 +192,32 @@ def main():
             break
 
     if not selected_pt:
-        print("[ERROR] Checkpoint .pt tidak ditemukan di Google Drive maupun direktori lokal!")
-        print("Pastikan Google Drive sudah ter-mount dan memiliki folder WRAI_v16_1.7B_Models_Transplant.")
+        print("[ERROR] Checkpoint .pt not found in Google Drive or local directory!")
+        print("Ensure Google Drive is mounted and contains folder WRAI_v16_1.7B_Models_Transplant.")
         sys.exit(1)
 
-    print(f"[OK] Ditemukan Checkpoint Sumber: {selected_pt}")
+    print(f"[OK] Found Source Checkpoint: {selected_pt}")
     pt_size_gb = os.path.getsize(selected_pt) / (1024**3)
-    print(f"     Ukuran Asli: {pt_size_gb:.2f} GB (FP16)\n")
+    print(f"     Original Size: {pt_size_gb:.2f} GB (FP16)\n")
 
-    # Tentukan Direktori Output
+    # Determine Output Directory
     out_dir = os.path.dirname(selected_pt)
     out_bin_path = os.path.join(out_dir, OUTPUT_BIN_NAME)
     out_vocab_path = os.path.join(out_dir, OUTPUT_VOCAB_NAME)
 
-    # 1. Ekspor Vocabulary jika belum ada
+    # 1. Export Vocabulary if not present
     if not os.path.exists(out_vocab_path):
         export_tokenizer_vocab_bin(out_vocab_path)
     else:
-        print(f"[INFO] Vocabulary {out_vocab_path} sudah ada. Melewati pembuatan vocab.\n")
+        print(f"[INFO] Vocabulary {out_vocab_path} already exists. Skipping vocab generation.\n")
 
-    # 2. Muat Checkpoint dengan Memory-Safe CPU Loader
-    print(f"[*] Membaca bobot model dari checkpoint (Stream CPU)...", flush=True)
+    # 2. Load Checkpoint with Memory-Safe CPU Loader
+    print(f"[*] Reading model weights from checkpoint (Stream CPU)...", flush=True)
     t0 = time.time()
     try:
         ckpt = torch.load(selected_pt, map_location="cpu", weights_only=False)
     except Exception as e:
-        print(f"[ERROR] Gagal memuat file PyTorch checkpoint: {e}")
+        print(f"[ERROR] Failed to load PyTorch checkpoint: {e}")
         sys.exit(1)
 
     epoch = ckpt.get("epoch", 1)
@@ -226,8 +226,8 @@ def main():
     del ckpt
     gc.collect()
 
-    print(f"[OK] Checkpoint Terbaca: Epoch {epoch} | Loss {loss:.4f} | Tensor Keys: {len(state_dict)}")
-    print(f"[*] Membuka file output binary: {out_bin_path}...\n", flush=True)
+    print(f"[OK] Checkpoint Loaded: Epoch {epoch} | Loss {loss:.4f} | Tensor Keys: {len(state_dict)}")
+    print(f"[*] Opening output binary file: {out_bin_path}...\n", flush=True)
 
     quant_flag = 8 if QUANT_MODE == "int8" else 4
 
@@ -256,10 +256,10 @@ def main():
         f_out.write(header_bytes)
 
         # ---------------------------------------------------------------------
-        # B. TENSOR UMUM (Embeddings, Positional, Wavelet, Final Norm)
+        # B. COMMON TENSORS (Embeddings, Positional, Wavelet, Final Norm)
         # ---------------------------------------------------------------------
         # 1. Positional Encoding (FP32)
-        print("  -> Menulis Positional Encoding (Sinusoidal FP32)...", flush=True)
+        print("  -> Writing Positional Encoding (Sinusoidal FP32)...", flush=True)
         if "pos_encoder.pe" in state_dict:
             pe = state_dict.pop("pos_encoder.pe").squeeze(0).float().numpy()
         else:
@@ -267,7 +267,7 @@ def main():
         f_out.write(pe.astype(np.float32).tobytes())
 
         # 2. Dual Wavelet Spectral Stabilizers (FP32)
-        print("  -> Menulis Dual Wavelet Spectral Filters (Layer 0 & 13)...", flush=True)
+        print("  -> Writing Dual Wavelet Spectral Filters (Layer 0 & 13)...", flush=True)
         for spec_name in ["spectral1", "spectral2"]:
             gw = state_dict.pop(f"{spec_name}.gate_weight").float().numpy()
             gb = state_dict.pop(f"{spec_name}.gate_bias").float().numpy()
@@ -283,7 +283,7 @@ def main():
         f_out.write(ln_final.astype(np.float32).tobytes())
 
         # 4. Token Embeddings (Quantized INT8 / INT4)
-        print(f"  -> Menguantisasi Token Embeddings ({VOCAB_SIZE} x {HIDDEN_DIM})...", flush=True)
+        print(f"  -> Quantizing Token Embeddings ({VOCAB_SIZE} x {HIDDEN_DIM})...", flush=True)
         emb_w = state_dict.pop("embed.weight")
         if QUANT_MODE == "int8":
             scales, q_data = quantize_rowwise_int8(emb_w)
@@ -297,9 +297,9 @@ def main():
         gc.collect()
 
         # ---------------------------------------------------------------------
-        # C. 28 LAPISAN WRAI (Retention + SwiGLU FFN + RMSNorm)
+        # C. 28 WRAI LAYERS (Retention + SwiGLU FFN + RMSNorm)
         # ---------------------------------------------------------------------
-        print("\n[*] Menguantisasi 28 Lapisan WRAI secara berurutan...", flush=True)
+        print("\n[*] Quantizing 28 WRAI Layers sequentially...", flush=True)
         for l in range(NUM_LAYERS):
             layer_t0 = time.time()
             prefix = f"layers.{l}."
@@ -349,7 +349,7 @@ def main():
             gc.collect()
             elapsed_layer = time.time() - layer_t0
             curr_mb = f_out.tell() / (1024 * 1024)
-            print(f"  [Layer {l+1:02d}/{NUM_LAYERS}] Kuantisasi selesai ({elapsed_layer:.1f}s) | Akumulasi File: {curr_mb:.1f} MB", flush=True)
+            print(f"  [Layer {l+1:02d}/{NUM_LAYERS}] Quantization complete ({elapsed_layer:.1f}s) | Accumulated File: {curr_mb:.1f} MB", flush=True)
 
     total_time = time.time() - t0
     final_size_mb = os.path.getsize(out_bin_path) / (1024 * 1024)
@@ -359,7 +359,7 @@ def main():
     # D. INTEGRITY VERIFICATION CHECK
     # -------------------------------------------------------------------------
     print("\n" + "=" * 70)
-    print("   🔍 MEMVERIFIKASI INTEGRITAS BINARY HASIL PACKING...              ")
+    print("   🔍 VERIFYING PACKED BINARY INTEGRITY...                          ")
     print("=" * 70)
     with open(out_bin_path, "rb") as f_check:
         h_bytes = f_check.read(64)
@@ -371,20 +371,13 @@ def main():
         print(f"  [ARCH CHECK OK]   Vocab: {voc:,} | Hidden: {h_dim} | FFN: {f_dim} | Loss: {l_val:.4f}")
 
     print("\n" + "=" * 70)
-    print("   🎉 KUANTISASI & PEMAKETAN MODEL WRAI v16 SELESAI 100%!           ")
+    print("   🎉 WRAI v16 MODEL QUANTIZATION & PACKING 100% COMPLETE!         ")
     print(f"   Output Binary   : {out_bin_path}")
-    print(f"   Ukuran Binary   : {final_size_gb:.2f} GB ({final_size_mb:.1f} MB)")
-    print(f"   Ukuran Asli     : {pt_size_gb:.2f} GB (Hemat {(1 - final_size_gb/pt_size_gb)*100:.1f}%)")
+    print(f"   Binary Size     : {final_size_gb:.2f} GB ({final_size_mb:.1f} MB)")
+    print(f"   Original Size   : {pt_size_gb:.2f} GB (Saved {(1 - final_size_gb/pt_size_gb)*100:.1f}%)")
     print(f"   Vocabulary C    : {out_vocab_path}")
-    print(f"   Total Waktu     : {total_time:.1f} detik")
+    print(f"   Total Time      : {total_time:.1f} seconds")
     print("=" * 70)
-    print("\n💡 LANGKAH SELANJUTNYA:")
-    print(f"1. Buka Google Drive di browser laptopmu.")
-    print(f"2. Buka folder: 'MyDrive/WRAI_v16_1.7B_Models_Transplant/'")
-    print(f"3. Cukup download 2 file ini ke folder laptopmu:")
-    print(f"   - {OUTPUT_BIN_NAME} ({final_size_gb:.2f} GB)")
-    print(f"   - {OUTPUT_VOCAB_NAME} (~2.5 MB)")
-    print(f"4. Laptop AMD A8 Puma+ kamu siap menjalankan WRAI v16 native C tanpa lemot!")
 
 if __name__ == "__main__":
     main()

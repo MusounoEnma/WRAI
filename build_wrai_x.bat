@@ -17,14 +17,14 @@ if %ERRORLEVEL% EQU 0 (
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo =================================================================
-    echo    [SUCCESS] BUILD BERHASIL 100%%! EXECUTABLE: wrai_x.exe      
+    echo    [SUCCESS] BUILD COMPLETED SUCCESSFULLY! EXECUTABLE: wrai_x.exe      
     echo =================================================================
     echo.
-    echo Jalankan dengan mengetik:
+    echo Run via command line:
     echo wrai_x.exe
     echo.
 ) else (
     echo.
-    echo [ERROR] Kompilasi gagal!
+    echo [ERROR] Compilation failed!
     exit /b 1
 )

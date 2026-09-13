@@ -2,11 +2,11 @@
 =============================================================================
  🚀 WRAI-X (0.8B) DIRECT QUANTIZER & NATIVE C BINARY PACKER
 =============================================================================
- Spesifikasi Target:
-  - Dimensi: D=1024, FFN=3072, 28 Layers, 16 Heads, Head Dim=128, Vocab=151936
-  - Kuantisasi INT8 Row-wise (Symmetric)
-  - Ukuran Output Binary: ~540 MB (Sangat ramping, RAM 600 MB di laptop AMD A8)
-  - Ekspor Otomatis Tokenizer Binary (wrai_x_vocab.bin)
+ Target Specifications:
+  - Dimensions: D=1024, FFN=3072, 28 Layers, 16 Heads, Head Dim=128, Vocab=151936
+  - Quantization: INT8 Row-wise (Symmetric)
+  - Binary Output Size: ~540 MB (Ultra-slim, ~600 MB RAM on AMD A8 laptop)
+  - Automatic Tokenizer Binary Export (wrai_x_vocab.bin)
 =============================================================================
 """
 
@@ -55,7 +55,7 @@ def quantize_rowwise_int8(tensor):
     return scales.flatten(), q_arr
 
 def export_tokenizer_vocab_bin(output_path):
-    print(f"[*] Mengekspor Tokenizer Vocabulary ke {output_path}...", flush=True)
+    print(f"[*] Exporting Tokenizer Vocabulary to {output_path}...", flush=True)
     tok = AutoTokenizer.from_pretrained(SOURCE_MODEL_NAME, trust_remote_code=True)
     vocab = tok.get_vocab()
     num_tokens = len(vocab)
@@ -73,13 +73,13 @@ def export_tokenizer_vocab_bin(output_path):
             if len(raw_bytes) > 255: raw_bytes = raw_bytes[:255]
             f.write(struct.pack("<B", len(raw_bytes)))
             f.write(raw_bytes)
-    print(f"[OK] Tokenizer binary selesai diekspor! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
+    print(f"[OK] Tokenizer binary exported successfully! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
 
 def pack_wrai_x_checkpoint(checkpoint_pt_path, output_bin_path):
-    print(f"[*] Memuat checkpoint: {checkpoint_pt_path}...")
+    print(f"[*] Loading checkpoint: {checkpoint_pt_path}...")
     sd = torch.load(checkpoint_pt_path, map_location="cpu")
 
-    print(f"[*] Menulis binary WRAI-X ke: {output_bin_path}...")
+    print(f"[*] Writing WRAI-X binary to: {output_bin_path}...")
     with open(output_bin_path, "wb") as f:
         # 64-Byte Header
         # magic(4B), ver(2B), layers(2B), hidden(2B), ffn(2B), heads(2B), head_dim(2B),
@@ -102,7 +102,7 @@ def pack_wrai_x_checkpoint(checkpoint_pt_path, output_bin_path):
         f.write(header)
 
         # 1. Embeddings
-        print("  -> Menulis Embeddings...")
+        print("  -> Writing Embeddings...")
         embed_w = sd["embed.weight"]
         s_emb, q_emb = quantize_rowwise_int8(embed_w)
         f.write(s_emb.tobytes())
@@ -111,7 +111,7 @@ def pack_wrai_x_checkpoint(checkpoint_pt_path, output_bin_path):
         # 2. Per-Layer Weights
         for l in range(NUM_LAYERS):
             if (l + 1) % 7 == 0 or l == 0:
-                print(f"  -> Mengemas Layer {l+1}/{NUM_LAYERS}...")
+                print(f"  -> Packing Layer {l+1}/{NUM_LAYERS}...")
 
             # Norms (FP32)
             f.write(sd[f"layers.{l}.rms_ret.weight"].float().numpy().tobytes())
@@ -162,7 +162,7 @@ def pack_wrai_x_checkpoint(checkpoint_pt_path, output_bin_path):
         f.write(sd["ln_final.weight"].float().numpy().tobytes())
 
     file_size_mb = os.path.getsize(output_bin_path) / 1e6
-    print(f"\n[OK SUCCESS] WRAI-X Binary Berhasil Dibuat: {output_bin_path} ({file_size_mb:.1f} MB)!")
+    print(f"\n[OK SUCCESS] WRAI-X Binary Pack Complete: {output_bin_path} ({file_size_mb:.1f} MB)!")
 
 if __name__ == "__main__":
     export_tokenizer_vocab_bin(OUTPUT_VOCAB_NAME)
@@ -170,4 +170,4 @@ if __name__ == "__main__":
     if os.path.exists(ckpt):
         pack_wrai_x_checkpoint(ckpt, OUTPUT_BIN_NAME)
     else:
-        print(f"[*] Info: Checkpoint {ckpt} akan di-pack setelah proses training selesai.")
+        print(f"[*] Info: Checkpoint {ckpt} will be packed after training finishes.")

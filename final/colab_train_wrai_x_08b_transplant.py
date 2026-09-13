@@ -3,17 +3,17 @@
 ================================================================================
  🧠 WRAI-X (0.8B) 1-CLICK COLAB ZERO-CONTAMINATION TRANSPLANT PIPELINE (V17.2)
 ================================================================================
- Fitur Baru (V17.2 - Authentic Qwen3 Reasoning & Slim Checkpoint):
-  1. 100% SIKLUS NALAR QWEN3: Mengadopsi format resmi <think>...</think>
-     - Penalaran internal (Chain of Thought) dalam Bahasa Inggris padat di dalam <think>
-     - Penutupan resmi </think> (Token ID: 151668)
-     - Jawaban akhir dalam Bahasa Indonesia atau Inggris sesuai pertanyaan user
-  2. RAMPING PAS 1.19 GB (Bfloat16 Clean Checkpoint):
-     - Membuang penumpukan duplikasi tensor tied weights saat save
-     - Menyimpan dalam bfloat16 (16-bit) persis bobot asli Qwen
-     - Ukuran berkas .pt menciut drastis dari 3.3 GB menjadi ~1.19 GB!
+ Features (V17.2 - Authentic Qwen3 Reasoning & Slim Checkpoint):
+  1. 100% QWEN3 REASONING CYCLE: Adopting official <think>...</think> format
+     - Compact Chain-of-Thought reasoning inside <think>
+     - Official closing token </think> (Token ID: 151668)
+     - Clean, direct final answers aligned with user queries
+  2. SLIM 1.19 GB CHECKPOINT (Bfloat16 Clean Checkpoint):
+     - Eliminates duplicated tied weight tensor storage during save
+     - Persists weights in authentic bfloat16 (16-bit) matching Qwen
+     - Reduces file size from 3.3 GB down to ~1.19 GB!
   3. ZERO KV-CACHE: RetNet Dual-State (Mt & Rt) + Haar Wavelet 4-Level
-  4. ZERO-CONTAMINATION: 100% Bobot Pengetahuan Qwen (264M FFN + 155M Emb) DIKUNCI!
+  4. ZERO-CONTAMINATION: 100% Core Knowledge Weights (264M FFN + 155M Emb) FROZEN!
 ================================================================================
 """
 
@@ -31,29 +31,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# Auto-mount Google Drive jika berjalan di Google Colab
+# Auto-mount Google Drive if running in Google Colab
 try:
     from google.colab import drive
     if not os.path.exists('/content/drive/MyDrive'):
-        print("[*] Menghubungkan Google Drive untuk menyimpan model secara permanen...")
+        print("[*] Mounting Google Drive for persistent model storage...")
         drive.mount('/content/drive')
     COLAB_SAVE_DIR = "/content/drive/MyDrive/WRAI_X_08B"
 except ImportError:
     COLAB_SAVE_DIR = "."
 
-# Auto-install dependensi jika belum tersedia
+# Auto-install dependencies if not available
 for pkg in ["transformers", "datasets", "accelerate"]:
     try:
         __import__(pkg)
     except ImportError:
-        print(f"[*] Menginstall dependensi {pkg} secara otomatis...", flush=True)
+        print(f"[*] Installing dependency {pkg} automatically...", flush=True)
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.optimization import Adafactor
 
 # -----------------------------------------------------------------------------
-# 1. Konfigurasi Arsitektur WRAI-X (0.8B)
+# 1. WRAI-X (0.8B) Architecture Configuration
 # -----------------------------------------------------------------------------
 SOURCE_MODEL_NAME = "Qwen/Qwen3-0.8B"
 
@@ -425,12 +425,12 @@ class WRAIX06BModel(nn.Module):
         return logits, new_states
 
 # -----------------------------------------------------------------------------
-# 3. Mesin Cangkok Bedah 1-to-1 dari Qwen 0.8B ke WRAI-X
+# 3. 1-to-1 Surgical Transplant Engine from Qwen 0.8B to WRAI-X
 # -----------------------------------------------------------------------------
 
 def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODEL_NAME, return_teacher=False):
     print("=" * 70)
-    print(f"[*] MEMULAI CANGKOK BEDAH 1-TO-1 DARI {source_model_name}...")
+    print(f"[*] STARTING 1-TO-1 SURGICAL TRANSPLANT FROM {source_model_name}...")
     print("=" * 70)
     t0 = time.time()
 
@@ -442,12 +442,12 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     )
     qwen_sd = qwen.state_dict()
 
-    print("[1/5] Mencangkok Embeddings Utuh (151,936 Token x 1024 Dim)...")
+    print("[1/5] Transplanting Full Embeddings (151,936 Tokens x 1024 Dim)...")
     wrai_model.embed.weight.data.copy_(qwen_sd["model.embed_tokens.weight"][:VOCAB_SIZE])
     wrai_model.output_proj.weight = wrai_model.embed.weight
     wrai_model.ln_final.weight.data.copy_(qwen_sd["model.norm.weight"])
 
-    print(f"[2/5] Mencangkok {NUM_LAYERS} Layer SwiGLU FFN & RMSNorms...")
+    print(f"[2/5] Transplanting {NUM_LAYERS} SwiGLU FFN Layers & RMSNorms...")
     for l in range(NUM_LAYERS):
         wrai_model.layers[l].ffn.w_gate.weight.data.copy_(qwen_sd[f"model.layers.{l}.mlp.gate_proj.weight"])
         wrai_model.layers[l].ffn.w_up.weight.data.copy_(qwen_sd[f"model.layers.{l}.mlp.up_proj.weight"])
@@ -455,7 +455,7 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
         wrai_model.layers[l].rms_ret.weight.data.copy_(qwen_sd[f"model.layers.{l}.input_layernorm.weight"])
         wrai_model.layers[l].rms_ffn.weight.data.copy_(qwen_sd[f"model.layers.{l}.post_attention_layernorm.weight"])
 
-    print(f"[3/5] Mencangkok Attention Matrices ke Memory Retention (Mt)...")
+    print(f"[3/5] Transplanting Attention Matrices to Memory Retention (Mt)...")
     for l in range(NUM_LAYERS):
         q_proj = qwen_sd[f"model.layers.{l}.self_attn.q_proj.weight"]
         o_proj = qwen_sd[f"model.layers.{l}.self_attn.o_proj.weight"]
@@ -470,7 +470,7 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
         wrai_model.layers[l].w_k.weight.data.copy_(k_proj_exp)
         wrai_model.layers[l].w_v.weight.data.copy_(v_proj_exp)
 
-        # Weight-tying Reasoning Projections (Rt) ke Memory Projections (Mt)
+        # Weight-tying Reasoning Projections (Rt) to Memory Projections (Mt)
         wrai_model.layers[l].w_qr.weight = wrai_model.layers[l].w_q.weight
         wrai_model.layers[l].w_kr.weight = wrai_model.layers[l].w_k.weight
         wrai_model.layers[l].w_vr.weight = wrai_model.layers[l].w_v.weight
@@ -479,7 +479,7 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     del qwen_sd
     gc.collect()
 
-    print("[4/5] MENGUNCI (FREEZING) 100% BOBOT INTI PENGETAHUAN QWEN...")
+    print("[4/5] FREEZING 100% OF CORE BASE KNOWLEDGE WEIGHTS...")
     wrai_model.embed.weight.requires_grad = False
     wrai_model.output_proj.weight.requires_grad = False
     wrai_model.ln_final.weight.requires_grad = False
@@ -519,11 +519,11 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
     trainable_params = sum(p.numel() for p in set(wrai_model.parameters()) if p.requires_grad)
     frozen_params = unique_params - trainable_params
 
-    print(f"[5/5] STATUS GOBOT TRANSPLANTASI SELESAI ({time.time()-t0:.2f}s):")
-    print(f"  - Total Parameter Model Murni: {unique_params:,} ({unique_params/1e6:.1f}M) -> 100% PERSIS 0.8B!")
-    print(f"  - Parameter Terkunci (FROZEN): {frozen_params:,} ({frozen_params/1e6:.1f}M / {frozen_params/unique_params*100:.2f}%)")
-    print(f"  - Parameter Dikalibrasi (WRAI): {trainable_params:,} ({trainable_params/1e3:.1f}K / {trainable_params/unique_params*100:.4f}%)")
-    print("[OK GUARANTEE] Pengetahuan Qwen 100% AMAN DARI KONTAMINASI DATASET!\n")
+    print(f"[5/5] SURGICAL TRANSPLANT STATUS COMPLETE ({time.time()-t0:.2f}s):")
+    print(f"  - Total Base Model Parameters: {unique_params:,} ({unique_params/1e6:.1f}M) -> 100% EXACT 0.8B!")
+    print(f"  - Frozen Parameters (LOCKED) : {frozen_params:,} ({frozen_params/1e6:.1f}M / {frozen_params/unique_params*100:.2f}%)")
+    print(f"  - Calibrated Parameters(WRAI): {trainable_params:,} ({trainable_params/1e3:.1f}K / {trainable_params/unique_params*100:.4f}%)")
+    print("[OK GUARANTEE] Base knowledge is 100% SAFE FROM DATASET CONTAMINATION!\n")
 
     if not return_teacher:
         del qwen
@@ -538,18 +538,18 @@ def surgical_transplant_qwen_to_wrai_x(wrai_model, source_model_name=SOURCE_MODE
         return qwen
 
 # -----------------------------------------------------------------------------
-# 4. Dataset Nalar Selaras Siklus Qwen3 (<think>...</think>)
+# 4. Authentic Qwen3 Reasoning Cycle Dataset (<think>...</think>)
 # -----------------------------------------------------------------------------
 
 def build_qwen3_reasoning_dataset():
     """
-    Dataset Kalibrasi Siklus Nalar Asli Qwen3 (~1,100 Pasang):
-    1. Sapaan & Dialog Alami (Direct Answer Mode: <think>\n\n</think>\n\n) [40 pasang]
-    2. Identitas WRAI-X & Arsitektur Zero KV-Cache [25 pasang]
-    3. Penalaran Matematika CoT Simetris (English Think -> ID & EN Final Answer) [320 pasang]
-    4. Pemrograman Python & C Fungsional (English Think -> Code) [200 pasang]
-    5. Sains, Biologi & Fisika Deduktif (English Think -> ID & EN Final Answer) [200 pasang]
-    6. Magpie Qwen Authentic Streamer [hingga 200 pasang]
+    Authentic Qwen3 Reasoning Cycle Dataset (~1,100 Pairs):
+    1. Natural Dialogues & Greetings (Direct Answer Mode: <think>\n\n</think>\n\n) [40 pairs]
+    2. WRAI-X Identity & Zero KV-Cache Architecture [25 pairs]
+    3. Mathematical Chain-of-Thought (English Think -> Clear Final Answer) [320 pairs]
+    4. Functional Python & C Programming (English Think -> Code) [200 pairs]
+    5. Deductive Science, Biology & Physics (English Think -> Final Answer) [200 pairs]
+    6. Magpie Authentic Streamer [up to 200 pairs]
     """
     items = []
 
@@ -795,11 +795,11 @@ def build_qwen3_reasoning_dataset():
 
     rng = random.Random(42)
     rng.shuffle(items)
-    print(f"[OK] Dataset Siklus Nalar Qwen3 Selesai: {len(items):,} Pasang Kalimat Berkualitas Tinggi!\n")
+    print(f"[OK] Qwen3 Reasoning Cycle Dataset Completed: {len(items):,} High-Quality Sentence Pairs!\n")
     return items
 
 # -----------------------------------------------------------------------------
-# 5. Pipeline Eksekusi Training Adapter (Colab / GPU)
+# 5. Adapter Training Pipeline (Colab / GPU)
 # -----------------------------------------------------------------------------
 
 def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
@@ -807,13 +807,13 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         torch.cuda.empty_cache()
         gc.collect()
 
-    print(f"[*] Menjalankan WRAI-X Transplant Engine pada Device: {DEVICE}\n")
+    print(f"[*] Executing WRAI-X Transplant Engine on Device: {DEVICE}\n")
 
-    print("[*] Memuat Tokenizer Qwen...")
+    print("[*] Loading Qwen Tokenizer...")
     tok = AutoTokenizer.from_pretrained(SOURCE_MODEL_NAME, trust_remote_code=True)
     if tok.pad_token is None: tok.pad_token = tok.eos_token
 
-    print("[*] Menginisialisasi Arsitektur WRAI-X 0.8B...")
+    print("[*] Initializing WRAI-X 0.8B Architecture...")
     model = WRAIX06BModel(vocab_size=VOCAB_SIZE, num_layers=NUM_LAYERS, hidden_dim=HIDDEN_DIM, ffn_dim=FFN_DIM)
     
     use_teacher = torch.cuda.is_available() and (torch.cuda.get_device_properties(0).total_memory > 8 * 1e9)
@@ -823,7 +823,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    # Siapkan Data Pola Siklus Nalar Masif
+    # Prepare reasoning cycle dataset patterns
     raw_pairs = build_qwen3_reasoning_dataset()
     encoded_data = []
     sys_turn = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
@@ -845,11 +845,11 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     all_inputs = torch.stack([x[0] for x in encoded_data], dim=0)
     all_masks = torch.stack([x[1] for x in encoded_data], dim=0)
 
-    # 1. Pre-komputasi Top-64 Sparse Teacher Logits
+    # 1. Pre-compute Top-64 Sparse Teacher Logits
     teacher_topk_all = None
     if teacher_model is not None:
-        print("[*] Teacher Knowledge Distillation (KD) DIAKTIFKAN pada GPU T4...")
-        print(f"[*] Melakukan Pre-komputasi Top-64 Sparse Teacher Logits Qwen (Batch Size 16, Total {all_inputs.size(0)} data)...")
+        print("[*] Teacher Knowledge Distillation (KD) ENABLED on GPU...")
+        print(f"[*] Pre-computing Top-64 Sparse Teacher Logits (Batch Size 16, Total {all_inputs.size(0)} samples)...")
         teacher_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
         teacher_model.to(DEVICE, dtype=teacher_dtype)
         teacher_model.eval()
@@ -867,16 +867,16 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         teacher_topk_vals = torch.cat(kd_vals, dim=0)
         teacher_topk_inds = torch.cat(kd_inds, dim=0)
         teacher_topk_all = (teacher_topk_vals, teacher_topk_inds)
-        print(f"[OK] Top-64 Teacher Logits ({teacher_topk_vals.shape}) selesai di-precompute dalam {time.time()-t_kd_0:.2f}s!")
-        print("[*] Menghapus model Teacher dari VRAM GPU untuk efisiensi maksimum...")
+        print(f"[OK] Top-64 Teacher Logits ({teacher_topk_vals.shape}) pre-computed in {time.time()-t_kd_0:.2f}s!")
+        print("[*] Freeing Teacher model from GPU VRAM for maximum training efficiency...")
         del teacher_model
         teacher_model = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    # 2. Pasang LoRA Rank-16 adapter pada w_q, w_k, w_v, w_out
-    print("[*] Mengaktifkan LoRA Rank-16 Precision Adapter pada Matriks RetNet...")
+    # 2. Attach LoRA Rank-16 adapters on w_q, w_k, w_v, w_out
+    print("[*] Enabling LoRA Rank-16 Precision Adapters on RetNet Matrices...")
     for l in range(NUM_LAYERS):
         layer = model.layers[l]
         layer.w_q = LoRALinear(layer.w_q, rank=16, alpha=32.0)
@@ -888,7 +888,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         layer.w_vr = layer.w_v
         layer.w_out_r = layer.w_out
 
-    # Pindahkan SELURUH Student WRAI-X (termasuk modul LoRA yang baru dibuat) ke DEVICE (cuda:0)
+    # Move entire WRAI-X Student model (including newly created LoRA modules) to DEVICE
     model.to(DEVICE)
 
     trainable_params = [p for p in model.parameters() if p.requires_grad]
@@ -906,13 +906,13 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         gc.collect()
 
     print("=" * 70)
-    print("   MEMULAI ADAPTASI SIKLUS NALAR QWEN3 (<think>...</think>)")
+    print("   STARTING QWEN3 REASONING CYCLE ADAPTATION (<think>...</think>)")
     print("=" * 70)
 
     model.train()
     steps = 800
     micro_batch_size = 2
-    grad_accum_steps = 4  # 2 * 4 = 8 sample per parameter update (Hemat VRAM 75%!)
+    grad_accum_steps = 4  # 2 * 4 = 8 samples per parameter update (Saves 75% VRAM!)
     t_start = time.time()
 
     num_samples = all_inputs.size(0)
@@ -928,7 +928,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
     final_step_loss = 0.0
     smooth_loss = 0.0
 
-    # Auto-deteksi tipe data AMP optimal
+    # Auto-detect optimal AMP datatype
     use_bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
 
@@ -940,7 +940,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         optimizer.zero_grad(set_to_none=True)
         step_loss_val = 0.0
 
-        # Micro-batching Loop (Hanya 2 sampel per pass forward/backward di VRAM!)
+        # Micro-batching Loop (Only 2 samples per forward/backward pass in VRAM!)
         for accum_idx in range(grad_accum_steps):
             if perm_ptr + micro_batch_size > num_samples:
                 perm = torch.randperm(num_samples)
@@ -987,10 +987,10 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
             eta_sec = (steps - step) / max(1e-4, steps_per_sec)
             print(f"  [*] Step {step:4d}/{steps} | Loss: {final_step_loss:.4f} (Avg: {smooth_loss:.4f}) | Speed: {steps_per_sec:.1f} step/s | ETA: {eta_sec:.0f}s", flush=True)
 
-    print(f"\n[OK SUCCESS] Kalibrasi WRAI-X Selesai dalam {time.time()-t_start:.2f} detik! Final Loss: {final_step_loss:.4f}\n")
+    print(f"\n[OK SUCCESS] WRAI-X Calibration Completed in {time.time()-t_start:.2f}s! Final Loss: {final_step_loss:.4f}\n")
 
-    # Merge LoRA kembali ke bobot dasar secara in-place
-    print("[*] Menggabungkan LoRA in-place ke bobot dasar model murni 0.8B...")
+    # Merge LoRA in-place into base 0.8B weights
+    print("[*] Merging LoRA in-place into base 0.8B weights...")
     for l in range(NUM_LAYERS):
         layer = model.layers[l]
         layer.w_q = layer.w_q.merge_and_restore()
@@ -1001,7 +1001,7 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         layer.w_kr = layer.w_k
         layer.w_vr = layer.w_v
         layer.w_out_r = layer.w_out
-    print("[OK] LoRA berhasil di-merge! Bobot 100% kembali ke bentuk nn.Linear murni.\n")
+    print("[OK] LoRA successfully merged! Weights returned 100% to pure nn.Linear form.\n")
 
     if teacher_topk_all is not None:
         del teacher_topk_all
@@ -1011,29 +1011,29 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         torch.cuda.empty_cache()
 
     # -------------------------------------------------------------------------
-    # 6. Simpan Checkpoint Ramping Bfloat16 (~1.19 GB, Tanpa Duplikasi)
+    # 6. Save Slim Bfloat16 Checkpoint (~1.19 GB, Zero Duplication)
     # -------------------------------------------------------------------------
     os.makedirs(target_dir, exist_ok=True)
     save_path = os.path.join(target_dir, "wrai_x_08b_transplanted.pt")
     
-    print("[*] Mengemas Checkpoint PyTorch dalam format BFLOAT16 (Tanpa Duplikasi)...")
+    print("[*] Packing PyTorch Checkpoint in BFLOAT16 format (Zero Duplication)...")
     sd_raw = model.state_dict()
     sd_slim = {}
     for k, v in sd_raw.items():
-        # Lewati duplikasi matriks tied agar file tidak bengkak
+        # Skip duplicate tied matrices to prevent file bloat
         if any(k.endswith(dup_k) for dup_k in [".w_qr.weight", ".w_kr.weight", ".w_vr.weight", ".w_out_r.weight", "output_proj.weight"]):
             continue
         sd_slim[k] = v.detach().cpu().to(torch.bfloat16)
 
     torch.save(sd_slim, save_path)
     file_size_mb = os.path.getsize(save_path) / 1e6
-    print(f"[OK SUCCESS] Checkpoint Tersimpan: {save_path} ({file_size_mb:.1f} MB) -> RAMPING PAS 1.19 GB!\n")
+    print(f"[OK SUCCESS] Checkpoint Saved: {save_path} ({file_size_mb:.1f} MB) -> SLIM 1.19 GB!\n")
 
     # -------------------------------------------------------------------------
-    # 7. Uji Inferensi Nyata (Streaming Reasoning & Output)
+    # 7. Live Inference Testing (Streaming Reasoning & Output)
     # -------------------------------------------------------------------------
     print("=" * 70)
-    print("   🤖 UJI INFERENSI NYATA SIKLUS NALAR QWEN3 (<think>...</think>)       ")
+    print("   🤖 LIVE INFERENCE TESTING WITH REASONING CYCLE (<think>...</think>) ")
     print("=" * 70)
 
     model.eval()
@@ -1043,7 +1043,8 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
         "Jika hari ini hari Rabu, 10 hari lagi hari apa?",
         "What is photosynthesis?",
         "Write a simple C program to print Hello World.",
-        "Buatkan fungsi Python untuk memeriksa apakah kata adalah palindrom."
+        "Write a Python function to check if a word is a palindrome.",
+        "Who are you and how does the WRAI-X architecture work?"
     ]
 
     def sample_token(l_tensor, generated, temperature=0.1, top_p=0.90, top_k=40, rep_penalty=1.05):
@@ -1102,11 +1103,11 @@ def run_transplant_and_training(target_dir=COLAB_SAVE_DIR):
                 logits, states = model.forward_step(t_tensor, states)
             print()
 
-    # Ekspor Checkpoint INT8 Binary C
+    # Export Native C INT8 Binary Checkpoint
     int8_bin_path = os.path.join(target_dir, "wrai_x_08b_int8.bin")
     pack_wrai_x_checkpoint(model.state_dict(), int8_bin_path, final_loss=final_step_loss)
 
-    # Ekspor Tokenizer Vocabulary
+    # Export Tokenizer Vocabulary
     vocab_bin_path = os.path.join(target_dir, "wrai_x_vocab.bin")
     export_tokenizer_vocab_bin(tok, vocab_bin_path)
 
@@ -1126,7 +1127,7 @@ def quantize_rowwise_int8(tensor):
     return scales.flatten(), q_arr
 
 def pack_wrai_x_checkpoint(sd, output_bin_path, final_loss=1.0):
-    print(f"[*] Mengemas bobot langsung ke Binary INT8 C: {output_bin_path}...")
+    print(f"[*] Packing weights directly to Native INT8 C Binary: {output_bin_path}...")
     with open(output_bin_path, "wb") as f:
         header = struct.pack(
             "<11If12s",
@@ -1205,10 +1206,10 @@ def pack_wrai_x_checkpoint(sd, output_bin_path, final_loss=1.0):
 
         # Final Norm (FP32)
         f.write(sd["ln_final.weight"].cpu().float().numpy().tobytes())
-    print(f"[OK] Binary INT8 C berhasil diekspor: {output_bin_path} ({os.path.getsize(output_bin_path)/1e6:.1f} MB)\n")
+    print(f"[OK] Native INT8 C Binary exported: {output_bin_path} ({os.path.getsize(output_bin_path)/1e6:.1f} MB)\n")
 
 def export_tokenizer_vocab_bin(tok, output_path):
-    print(f"\n[*] Mengekspor Tokenizer Vocabulary ke: {output_path}...", flush=True)
+    print(f"\n[*] Exporting Tokenizer Vocabulary to: {output_path}...", flush=True)
     vocab = tok.get_vocab()
     num_tokens = max(len(vocab), VOCAB_SIZE)
     id_to_token = {token_id: token_str for token_str, token_id in vocab.items()}
@@ -1221,7 +1222,7 @@ def export_tokenizer_vocab_bin(tok, output_path):
             if len(raw_bytes) > 255: raw_bytes = raw_bytes[:255]
             f.write(struct.pack("<B", len(raw_bytes)))
             f.write(raw_bytes)
-    print(f"[OK] Tokenizer binary selesai diekspor! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
+    print(f"[OK] Tokenizer binary exported! ({os.path.getsize(output_path)/1e6:.2f} MB)\n", flush=True)
 
 if __name__ == "__main__":
     run_transplant_and_training()

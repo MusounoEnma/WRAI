@@ -9,19 +9,19 @@ sys.path.insert(0, "final")
 from test_wrai_x_08b_english import WRAIX06BModel, sample_token
 
 print("=" * 70)
-print("[*] Memuat Tokenizer Qwen...")
+print("[*] Loading Qwen Tokenizer...")
 tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.8B", trust_remote_code=True)
 
-print("[*] Menginisialisasi Model WRAI-X 0.8B...")
+print("[*] Initializing WRAI-X 0.8B Model...")
 model = WRAIX06BModel(vocab_size=151936, num_layers=28, hidden_dim=1024, ffn_dim=3072)
 
 ckpt_path = "models x/wrai_x_08b_transplanted.pt"
-print(f"[*] Memuat bobot dari {ckpt_path}...")
+print(f"[*] Loading weights from {ckpt_path}...")
 sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)
 model.load_state_dict(sd, strict=False)
 model.eval()
 
-query = "halo"
+query = "Hello, tell me about yourself."
 prompt = f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n{query}<|im_end|>\n<|im_start|>assistant\n"
 p_ids = tok.encode(prompt, add_special_tokens=False)
 

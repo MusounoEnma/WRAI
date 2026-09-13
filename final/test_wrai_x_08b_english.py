@@ -33,7 +33,7 @@ from transformers import AutoTokenizer
 try:
     from google.colab import drive
     if not os.path.exists('/content/drive/MyDrive'):
-        print("[*] Menghubungkan Google Drive untuk memuat model checkpoint...")
+        print("[*] Mounting Google Drive to load model checkpoint...")
         drive.mount('/content/drive')
 except ImportError:
     pass
@@ -409,7 +409,7 @@ def load_model(checkpoint_path=None):
         print("[*] Loading Weights into Memory...")
         sd = torch.load(ckpt_file, map_location="cpu")
         model.load_state_dict(sd, strict=False)
-        # Pastikan pointer tied weights terpasang 100% sempurna (untuk checkpoint ramping 1.19 GB)
+        # Ensure tied weight pointers are 100% attached (for slim 1.19 GB checkpoint)
         for l in range(NUM_LAYERS):
             model.layers[l].w_qr.weight = model.layers[l].w_q.weight
             model.layers[l].w_kr.weight = model.layers[l].w_k.weight

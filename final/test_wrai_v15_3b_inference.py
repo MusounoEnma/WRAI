@@ -3,10 +3,10 @@
 =============================================================================
  WRAI v15 (3B) — INFERENCE BENCHMARK & INTERACTIVE CHAT STUDIO
 =============================================================================
- Evaluasi model WRAI v15 hasil transplantasi bobot Qwen2.5-3B (1:1):
-  - 100% 0% KV-Cache (Fixed 16 KB SRAM Ping-Pong)
-  - Full 151,936 Vocab (Zero Slicing, Bahasa Alami & Mengalir Sempurna)
-  - 24 Layer Multi-Head Retention Long-Context + SwiGLU + Wavelet Spectral (2048-dim)
+ Evaluation of WRAI v15 model transplanted from Qwen2.5-3B (1:1):
+  - 100% Zero KV-Cache (Fixed 16 KB SRAM Ping-Pong)
+  - Full 151,936 Vocab (Zero Slicing, Natural & Fluent Reasoning)
+  - 24-Layer Multi-Head Retention Long-Context + SwiGLU + Wavelet Spectral (2048-dim)
 =============================================================================
 """
 
@@ -303,7 +303,7 @@ def load_3b_model():
             except Exception as e:
                 print(f"[WARN] Failed to load 2-shard from {loc}: {e}")
 
-    # 2. Fallback Format Monolithic Lama (.pt)
+    # 2. Fallback to Legacy Monolithic Format (.pt)
     if not loaded_ckpt:
         candidate_checkpoints = []
         if len(sys.argv) > 1 and os.path.exists(sys.argv[1]):
@@ -363,12 +363,12 @@ def load_3b_model():
                     loaded_ckpt = True
                     break
                 except Exception as e:
-                    print(f"[WARN] Gagal memuat {p}: {e}")
+                    print(f"[WARN] Failed to load {p}: {e}")
 
     if not loaded_ckpt:
-        print("\n[!] PERINGATAN: Tidak ada file .pt ditemukan!")
-        print(f"  --> Jalur yang diperiksa: {candidate_checkpoints[:5]}")
-        print("  --> Pastikan Google Drive ter-mount dan folder /content/drive/MyDrive/WRAI_v15_3B_Models_Transplant berisi file .pt\n")
+        print("\n[!] WARNING: No .pt checkpoint files found!")
+        print(f"  --> Checked paths: {candidate_checkpoints[:5]}")
+        print("  --> Ensure Google Drive is mounted and folder /content/drive/MyDrive/WRAI_v15_3B_Models_Transplant contains .pt files\n")
 
     model.eval()
     return model, tokenizer
@@ -453,7 +453,7 @@ def run_benchmark_suite_3b(model, tokenizer):
         print(f"\033[1;33m[TEST DOMAIN]\033[0m {domain}")
         print(f"\033[1;37m[USER PROMPT]\033[0m \"{prompt}\"")
         
-        # Gunakan temperature rendah (0.15) & top_k presisi (20) agar jawaban fokus, tajam & tidak melantur
+        # Use low temperature (0.15) & precise top_k (20) for focused, sharp outputs
         result = generate_response_3b(
             model, tokenizer, prompt, max_new_tokens=150, temperature=0.15, top_k=20, repetition_penalty=1.1
         )
@@ -466,7 +466,7 @@ def run_benchmark_suite_3b(model, tokenizer):
 def interactive_chat_3b(model, tokenizer):
     print("="*70)
     print("💬 LIVE INTERACTIVE CHAT STUDIO — WRAI v15 (3B PARAMETERS)")
-    print("Ketik 'exit' atau 'keluar' untuk selesai")
+    print("Type 'exit' or 'quit' to end session")
     print("="*70)
 
     while True:
@@ -475,7 +475,7 @@ def interactive_chat_3b(model, tokenizer):
             if not prompt:
                 continue
             if prompt.lower() in ("exit", "keluar", "quit", "q"):
-                print("\n[👋] Sesi WRAI v15 Selesai!\n")
+                print("\n[👋] WRAI v15 Session Completed!\n")
                 break
 
             result = generate_response_3b(

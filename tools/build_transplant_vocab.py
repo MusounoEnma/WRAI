@@ -3,10 +3,10 @@
 =============================================================================
  WRAI v14.7 — STANDALONE VOCABULARY MAP GENERATOR & DRIVE SYNC
 =============================================================================
- Memindai korpus multi-domain yang sama persis (Alpaca ID, Alpaca EN,
- OPUS Translation, Hermes Function Calling, WRAI Swarm Persona) dan
- menghasilkan vocab_map_v14_7_transplant.json yang 100% presisi dan
- langsung tersimpan di Google Drive!
+ Scans identical multi-domain corpus (Alpaca ID, Alpaca EN,
+ OPUS Translation, Hermes Function Calling, WRAI Swarm Persona) and
+ generates vocab_map_v14_7_transplant.json with 100% precision,
+ directly saving to Google Drive!
 =============================================================================
 """
 
@@ -199,7 +199,7 @@ def main():
     print("   WRAI v14.7 STANDALONE VOCABULARY MAP GENERATOR & DRIVE SYNC   ")
     print("=================================================================")
 
-    # 1. Cek ukuran vocab dari checkpoint .pt jika ada di Drive
+    # 1. Check vocab size from .pt checkpoint if present in Drive
     target_vocab_size = None
     check_ckpts = [
         os.path.join(DRIVE_SAVE_DIR, "wrai_v14_7_transplant_best.pt"),
@@ -279,7 +279,7 @@ def main():
             print(f"[WARN] Failed to write {loc}: {e}")
 
     print("\n=================================================================")
-    print(f"   🎉 VOCABULARY MAP BERHASIL DIBUAT (Total Vocab: {total_vocab_size})   ")
+    print(f"   🎉 VOCABULARY MAP SUCCESSFULLY CREATED (Total Vocab: {total_vocab_size})   ")
     print("=================================================================\n")
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@
 =============================================================================
  WRAI v14.7 TRANSPLANT — INFERENCE BENCHMARK & INTERACTIVE CHAT STUDIO
 =============================================================================
- Evaluasi model WRAI hasil transplantasi bobot Qwen:
-  - 100% 0% KV-Cache (Fixed 8 KB SRAM)
-  - Wavelet Spectral + 12 Layer ResGRU + SwiGLU
+ Evaluation of WRAI model transplanted from Qwen:
+  - 100% Zero KV-Cache (Fixed 8 KB SRAM)
+  - Wavelet Spectral + 12-Layer ResGRU + SwiGLU
   - Multi-Agent Pipeline & Translation Verification
 =============================================================================
 """
@@ -224,10 +224,10 @@ def load_transplant_model():
                 loaded_ckpt = True
                 break
             except Exception as e:
-                print(f"[WARN] Gagal memuat {p}: {e}")
+                print(f"[WARN] Failed to load {p}: {e}")
 
     if not loaded_ckpt:
-        print("[!] PERINGATAN: Tidak ada file .pt ditemukan. Menjalankan model dalam mode inisialisasi.")
+        print("[!] WARNING: No .pt checkpoint files found. Running model in initial state.")
 
     model.eval()
     return model, tokenizer, teacher_to_pruned, pruned_to_teacher, tag_to_id, id_to_tag
@@ -347,7 +347,7 @@ def run_benchmark_suite(model, tokenizer, teacher_to_pruned, pruned_to_teacher, 
 def interactive_chat(model, tokenizer, teacher_to_pruned, pruned_to_teacher, id_to_tag):
     print("="*70)
     print("💬 LIVE INTERACTIVE CHAT STUDIO — WRAI v14.7 TRANSPLANT")
-    print("Ketik 'exit' atau 'keluar' untuk selesai")
+    print("Type 'exit' or 'quit' to end session")
     print("="*70)
 
     while True:
@@ -356,7 +356,7 @@ def interactive_chat(model, tokenizer, teacher_to_pruned, pruned_to_teacher, id_
             if not prompt:
                 continue
             if prompt.lower() in ("exit", "keluar", "quit", "q"):
-                print("\n[👋] Terima kasih telah menguji WRAI v14.7 Transplant!\n")
+                print("\n[👋] Session completed! Thank you for testing WRAI v14.7 Transplant.\n")
                 break
 
             result = generate_response(

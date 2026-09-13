@@ -3,14 +3,14 @@
 =============================================================================
  WRAI v15 (3B) — MONSTER 1:1 QWEN WEIGHT TRANSPLANT & 151k FULL VOCAB TRAINER
 =============================================================================
- Arsitektur WRAI v15 Final:
-  - 100% 0% KV-Cache (Fixed 16 KB SRAM Ping-Pong Buffer)
-  - 24 Layer Multi-Head Retention Long-Context (H=16, D=128, GroupNorm)
+ Final WRAI v15 Architecture:
+  - 100% Zero KV-Cache (Fixed 16 KB SRAM Ping-Pong Buffer)
+  - 24-Layer Multi-Head Retention Long-Context (H=16, D=128, GroupNorm)
   - 4-Level Haar DWT Spectral Mixer (Elementwise Gating O(H))
   - 1:1 SwiGLU FFN Size (2048 <-> 11008)
-  - 1:1 Direct Weight Transplant dari Qwen/Qwen2.5-3B-Instruct
-  - Full 151,936 Vocab (Tanpa Slicing, Kosakata Sempurna & Bahasa Mengalir)
-  - Distilasi: Shift-1 Clean Alignment dari Qwen2.5-3B
+  - 1:1 Direct Weight Transplant from Qwen/Qwen2.5-3B-Instruct
+  - Full 151,936 Vocab (Zero Slicing, Full Natural Vocabulary & Fluid Reasoning)
+  - Distillation: Shift-1 Clean Alignment from Qwen2.5-3B
 =============================================================================
 """
 

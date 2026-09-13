@@ -3,15 +3,15 @@
 =============================================================================
  WRAI v16 (1.7B) — PURE 1:1 QWEN 3 WEIGHT TRANSPLANT & ZERO-DISTILLATION TRAINER
 =============================================================================
- Arsitektur WRAI v16 Final:
-  - Fixed 2 MB Memory Buffer Budget (99.9% Lebih Ringan dari KV-Cache Transformer)
+ Final WRAI v16 Architecture:
+  - Fixed 2 MB Memory Buffer Budget (99.9% Lighter than Transformer KV-Cache)
   - 28 Deep Retention Layers (16 Heads, D=128, GroupNorm)
-  - 1:1 Exact Hidden Dim: 2048 (Kompatibel AVX-512 & Haar DWT)
+  - 1:1 Exact Hidden Dim: 2048 (AVX-512 & Haar DWT Compatible)
   - 1:1 Exact SwiGLU FFN Size: 2048 <-> 6144
-  - 1:1 Direct Weight Transplant dari Qwen/Qwen3-1.7B-Instruct (GQA 8 -> 16 KV)
-  - 0% Distilasi Rumit: Tanpa Model Guru di VRAM (Hemat 6 GB RAM/VRAM!)
-  - 100% Dataset Bersih: Tanpa Spam Tool-Calling Sintetis Hermes
-  - 1 File Checkpoint Tunggal (~2.4 GB FP16) — Bebas Sharding & Bebas OOM Colab
+  - 1:1 Direct Weight Transplant from Qwen/Qwen3-1.7B-Instruct (GQA 8 -> 16 KV)
+  - 0% Complex Distillation: No Teacher Model in VRAM (Saves 6 GB RAM/VRAM!)
+  - 100% Clean Dataset: No Synthetic Hermes Tool-Calling Spam
+  - 1 Single Checkpoint File (~2.4 GB FP16) — Shard-free & Colab OOM-free
 =============================================================================
 """
 
@@ -324,7 +324,7 @@ def transplant_weights_from_qwen3(wrai_model, qwen3_model_name=QWEN3_MODEL_NAME)
             trust_remote_code=True
         )
     except Exception as e:
-        print(f"[WARN] Gagal memuat {qwen3_model_name} ({e}). Menggunakan cadangan {FALLBACK_MODEL_NAME}...")
+        print(f"[WARN] Failed to load {qwen3_model_name} ({e}). Falling back to {FALLBACK_MODEL_NAME}...")
         qwen3_model_name = FALLBACK_MODEL_NAME
         qwen = AutoModelForCausalLM.from_pretrained(
             qwen3_model_name,
@@ -716,7 +716,7 @@ def main():
     try:
         tokenizer = AutoTokenizer.from_pretrained(active_model_name, token=HF_TOKEN, trust_remote_code=True)
     except Exception as e:
-        print(f"[WARN] Gagal memuat tokenizer {active_model_name} ({e}). Menggunakan {FALLBACK_MODEL_NAME}...")
+        print(f"[WARN] Failed to load tokenizer {active_model_name} ({e}). Falling back to {FALLBACK_MODEL_NAME}...")
         active_model_name = FALLBACK_MODEL_NAME
         tokenizer = AutoTokenizer.from_pretrained(active_model_name, token=HF_TOKEN, trust_remote_code=True)
 
@@ -737,7 +737,7 @@ def main():
     start_epoch, start_step, best_loss, resumed = try_load_checkpoint(model)
 
     if not resumed:
-        # Cek apakah snapshot awal transplantasi sudah ada di Google Drive / lokal
+        # Check whether initial transplant snapshot already exists in Google Drive / local
         initial_candidates = [
             os.path.join(DRIVE_SAVE_DIR, "wrai_v16_1.7b_transplant_initial.pt"),
             os.path.join(OUTPUT_DIR, "wrai_v16_1.7b_transplant_initial.pt"),
@@ -745,15 +745,15 @@ def main():
         loaded_initial = False
         for init_pt in initial_candidates:
             if os.path.exists(init_pt):
-                print(f"[*] Menemukan snapshot transplantasi murni: {init_pt}!", flush=True)
-                print("    Memuat langsung bobot 1:1 tanpa perlu download ulang Qwen3...", flush=True)
+                print(f"[*] Found pure transplant snapshot: {init_pt}!", flush=True)
+                print("    Loading 1:1 weights directly without re-downloading Qwen3...", flush=True)
                 try:
                     ckpt = torch.load(init_pt, map_location="cpu", weights_only=False)
                     model.load_state_dict(ckpt.get("model_state", ckpt), strict=False)
                     model.output_proj.weight = model.embed.weight
                     model.to(DEVICE, dtype=MODEL_DTYPE)
                     loaded_initial = True
-                    print("[OK SUCCESS] Bobot awal transplantasi Qwen 3 siap 100%!", flush=True)
+                    print("[OK SUCCESS] Qwen 3 initial transplant weights ready 100%!", flush=True)
                     del ckpt
                     gc.collect()
                     break

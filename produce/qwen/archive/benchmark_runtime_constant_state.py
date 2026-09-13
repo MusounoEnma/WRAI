@@ -2,12 +2,12 @@
 =============================================================================
    🔬 WRAI-X (0.8B) RUNTIME CONSTANT-STATE PROOF & CONTEXT SCALING BENCHMARK
 =============================================================================
- Alat pengujian empiris runtime untuk membuktikan secara saintifik:
- 1. Bentuk tensor state (state_m, state_r, state_hdc) pada setiap layer
- 2. Bukti ukuran memori state tetap konstan 100% pada T = 128, 512, 2K, 8K
- 3. Latensi inferensi per-token konstan O(1) time (tidak melambat seiring T)
- 4. Tidak ada buffer K/V tersembunyi yang bertambah di memori (Zero Heap Growth)
- 5. Perbandingan langsung vs Transformer KV-Cache yang meledak O(T)
+ Empirical runtime benchmark tool to scientifically verify:
+ 1. State tensor shapes (state_m, state_r, state_hdc) across all layers
+ 2. Constant memory proof: state memory remains 100% constant across T = 128, 512, 2K, 8K
+ 3. O(1) per-token inference latency (does not slow down with sequence length T)
+ 4. Zero hidden K/V buffer growth in heap memory (Zero Heap Growth)
+ 5. Direct comparison against Transformer KV-Cache exploding with O(T)
 =============================================================================
 """
 
@@ -19,7 +19,7 @@ import math
 import argparse
 import numpy as np
 
-# Pastikan output UTF-8
+# Ensure UTF-8 output
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -48,7 +48,7 @@ DEFAULT_CHECKPOINT_PATHS = [
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # -----------------------------------------------------------------------------
-# Definisi Arsitektur WRAI-X
+# WRAI-X Architecture Definition
 # -----------------------------------------------------------------------------
 class RMSNorm(nn.Module):
     def __init__(self, dim, eps=1e-6):
@@ -287,10 +287,10 @@ class WRAIX06BModel(nn.Module):
 # -----------------------------------------------------------------------------
 def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
     print("=" * 80)
-    print(" 🔬 RUNTIME BENCHMARK: BUKTI EMPIRIS MEMORI STATE KONSTAN & CONTEXT SCALING")
+    print(" 🔬 RUNTIME BENCHMARK: EMPIRICAL PROOF OF CONSTANT-STATE MEMORY & CONTEXT SCALING")
     print("=" * 80)
 
-    # 1. Cari Checkpoint
+    # 1. Search for Checkpoint
     if checkpoint_path is None:
         for p in DEFAULT_CHECKPOINT_PATHS:
             if os.path.exists(p):
@@ -299,17 +299,17 @@ def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
 
     sd = None
     if checkpoint_path and os.path.exists(checkpoint_path):
-        print(f"[*] Memuat checkpoint WRAI-X: {checkpoint_path}...", flush=True)
+        print(f"[*] Loading WRAI-X checkpoint: {checkpoint_path}...", flush=True)
         sd = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
-        print(f"[OK] Checkpoint berhasil dimuat ({len(sd)} tensors).\n", flush=True)
+        print(f"[OK] Checkpoint successfully loaded ({len(sd)} tensors).\n", flush=True)
     else:
-        print("[!] Menjalankan dalam mode arsitektur murni.\n", flush=True)
+        print("[!] Running in pure architecture mode.\n", flush=True)
 
     # 2. Setup Model
     active_layers = NUM_LAYERS if sd is not None else 2
     active_vocab = VOCAB_SIZE if sd is not None else 1000
 
-    print(f"[*] Menginisialisasi Model WRAI-X ({active_layers} Layer, Device: {DEVICE})...", flush=True)
+    print(f"[*] Initializing WRAI-X Model ({active_layers} Layers, Device: {DEVICE})...", flush=True)
     model = WRAIX06BModel(vocab_size=active_vocab, num_layers=active_layers).to(DEVICE)
     model = model.to(torch.bfloat16 if DEVICE.type == "cuda" else torch.float32)
 
@@ -325,46 +325,46 @@ def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
                 if k_r not in sd and k_b in sd:
                     sd[k_r] = sd[k_b]
         model.load_state_dict(sd, strict=False)
-        print("[OK] Bobot Checkpoint terpasang 100% ke Model.", flush=True)
+        print("[OK] Checkpoint weights loaded 100% into Model.", flush=True)
 
     model.eval()
 
-    # 3. Tentukan Target Panjang Konteks (T)
+    # 3. Specify Target Context Lengths (T)
     if test_lengths is None:
         if DEVICE.type == "cuda":
             test_lengths = [128, 512, 2048, 8192]
         else:
-            # CPU mode default: skala cepat
+            # CPU mode default: rapid scaling
             test_lengths = [32, 128, 256, 512]
 
-    print(f"\n[*] Target Pengujian Panjang Konteks (T): {test_lengths}")
-    print("    Akan mengevaluasi:")
-    print("    - Bentuk tensor: state_m, state_r, state_hdc")
-    print("    - Ukuran total memori state (MB)")
-    print("    - Selisih memori terhadap T awal (Δ MB)")
-    print("    - Komparasi terhadap ukuran KV-Cache Transformer konvensional")
-    print("    - Latensi inferensi per-token (ms/tok)\n")
+    print(f"\n[*] Target Context Length Evaluation (T): {test_lengths}")
+    print("    Evaluating:")
+    print("    - Tensor shapes: state_m, state_r, state_hdc")
+    print("    - Total state memory size (MB)")
+    print("    - Memory delta relative to initial T (Δ MB)")
+    print("    - Comparison against conventional Transformer KV-Cache size")
+    print("    - Per-token inference latency (ms/tok)\n")
 
-    # Ambil 1 step pemanasan (warmup)
+    # Perform 1 warmup step
     dummy_input = torch.tensor([0], device=DEVICE)
     with torch.no_grad():
         _, init_states = model.forward_step(dummy_input, None)
 
     sm0, sr0, shdc0, _ = init_states[0]
-    print(f"[*] Inspeksi Struktur Tensor State (Layer 0):")
+    print(f"[*] State Tensor Structure Inspection (Layer 0):")
     print(f"    • state_m.shape   : {list(sm0.shape)}   (Fixed [B, H, HD, HD])")
     print(f"    • state_r.shape   : {list(sr0.shape)}   (Fixed [B, H, HD, HD])")
     print(f"    • state_hdc.shape : {list(shdc0.shape)}        (Fixed [B, Dim])")
 
-    # Header Tabel Hasil
+    # Results Table Header
     print("\n" + "=" * 95)
-    print(f"{'Panjang (T)':<12} | {'State Tensor Size':<19} | {'Δ State Mem':<13} | {'Transformer KV':<18} | {'Hemat Memori':<14} | {'Speed'}")
+    print(f"{'Length (T)':<12} | {'State Tensor Size':<19} | {'Δ State Mem':<13} | {'Transformer KV':<18} | {'Memory Saved':<14} | {'Speed'}")
     print("=" * 95)
 
     base_state_bytes = None
 
     for target_t in test_lengths:
-        # Reset state untuk pengujian bersih
+        # Reset state for clean evaluation
         states = None
         input_tok = torch.tensor([0], device=DEVICE)
 
@@ -378,7 +378,7 @@ def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
         elapsed = time.time() - t_start
         ms_per_tok = (elapsed / target_t) * 1000.0
 
-        # Ukur total ukuran tensor state di RAM
+        # Measure total state tensor footprint in RAM
         total_state_bytes = 0
         total_tensor_count = 0
         for sm, sr, shdc, pos in states:
@@ -393,7 +393,7 @@ def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
         delta_state_mb = (total_state_bytes - base_state_bytes) / 1e6
         state_mb = total_state_bytes / 1e6
 
-        # Hitung ukuran Transformer KV-Cache (2 * L * H * HD * T * 2 bytes)
+        # Compute conventional Transformer KV-Cache size (2 * L * H * HD * T * 2 bytes)
         tf_kv_bytes = 2 * active_layers * NUM_HEADS * HEAD_DIM * target_t * 2
         tf_kv_str = f"{tf_kv_bytes / 1e6:.2f} MB" if tf_kv_bytes < 1e9 else f"{tf_kv_bytes / 1e9:.2f} GB"
         savings_ratio = f"{tf_kv_bytes / total_state_bytes:.1f}x" if tf_kv_bytes >= total_state_bytes else "1.0x"
@@ -407,22 +407,22 @@ def run_context_scaling_benchmark(checkpoint_path=None, test_lengths=None):
     print("=" * 95)
 
     print("\n" + "=" * 80)
-    print(" 🏆 KESIMPULAN AUDIT RUNTIME: 'CONSTANT-STATE PROOF' LULUS 100%!")
+    print(" 🏆 RUNTIME AUDIT CONCLUSION: 'CONSTANT-STATE PROOF' 100% PASSED!")
     print("=" * 80)
     print("""
-  1. Bukti Dimensi:
+  1. Dimensional Proof:
      state_m.shape   = [1, 16, 128, 128]
      state_r.shape   = [1, 16, 128, 128]
      state_hdc.shape = [1, 1024]
-     -> TIDAK ADA dimensi T (sequence length) pada tensor state!
+     -> NO sequence length dimension T exists in any state tensor!
 
-  2. Bukti Memori Tetap Datar:
-     Ukuran total tensor state dari awal sampai akhir adalah PERSIS SAMA (Δ = 0.0000 MB).
-     Memori recurrent state WRAI-X tidak tumbuh sama sekali terhadap context length!
+  2. Constant Memory Proof:
+     Total state tensor footprint from start to finish is EXACTLY EQUAL (Δ = 0.0000 MB).
+     WRAI-X recurrent state memory exhibits ZERO growth with respect to context length!
 
-  3. Bukti Perbandingan KV-Cache:
-     Saat Transformer konvensional membengkak hingga puluhan Gigabyte (OOM),
-     WRAI-X tetap stabil di ~29.4 MB (atau ~4.2 MB pada 2 layer uji CPU).
+  3. KV-Cache Comparison Proof:
+     While conventional Transformer KV-Cache explodes to tens of Gigabytes (OOM),
+     WRAI-X remains completely flat at ~29.4 MB (or ~4.2 MB in 2-layer CPU test mode).
     """)
 
 if __name__ == "__main__":

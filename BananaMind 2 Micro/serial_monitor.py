@@ -20,8 +20,14 @@ def auto_detect_port():
     return ports[0].device
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print("Usage: python serial_monitor.py [PORT] [BAUD]")
+        print("  PORT : Serial port (e.g., COM3, /dev/ttyUSB0). If omitted, auto-detected.")
+        print("  BAUD : Baud rate (default: 115200)")
+        return
+
     port = sys.argv[1] if len(sys.argv) > 1 else auto_detect_port()
-    baud = 115200
+    baud = int(sys.argv[2]) if len(sys.argv) > 2 else 115200
     
     if not port:
         print("[!] No active COM ports detected! Please connect your ESP32 board and retry.")

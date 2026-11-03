@@ -778,6 +778,8 @@ def main_cli() -> None:
     parser.add_argument("--backend", type=str, default="jit_float", choices=["jit_float", "pytorch_int8", "cpp_avx1"])
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--prompt", type=str, default=None, help="Input prompt for single-shot generation")
+    parser.add_argument("--max-new-tokens", type=int, default=64, help="Maximum new tokens to generate")
     parser.add_argument("--interactive", action="store_true")
     args = parser.parse_args()
 
@@ -833,8 +835,15 @@ def main_cli() -> None:
             if not q or q.lower() in ("exit", "quit"):
                 break
             p = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{q}<|im_end|>\n<|im_start|>assistant\n"
-            ans, _, tps = generate_standalone_answer(model, tokenizer, p, max_new_tokens=96)
+            ans, _, tps = generate_standalone_answer(model, tokenizer, p, max_new_tokens=args.max_new_tokens)
             print(f"WRAI ({tps:.1f} tok/s) > {ans}")
+    else:
+        test_prompt = args.prompt if args.prompt is not None else "The future of artificial intelligence on edge devices is"
+        p = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{test_prompt}<|im_end|>\n<|im_start|>assistant\n"
+        print(f"\n[Prompt] : {test_prompt}")
+        ans, pre_s, tps = generate_standalone_answer(model, tokenizer, p, max_new_tokens=args.max_new_tokens)
+        print(f"[Output] : {ans}")
+        print(f"[Speed]  : {tps:.2f} tok/s (prefill: {pre_s:.3f}s)")
 
 if __name__ == "__main__":
     main_cli()

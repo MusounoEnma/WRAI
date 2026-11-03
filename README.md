@@ -2,6 +2,7 @@
 ### Transforming Linear KV-Cache into Bounded Tri-Memory for Low-Resource Edge Computing
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23920132.svg)](https://doi.org/10.5281/zenodo.23920132)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg)](https://pytorch.org/)
 [![Dynamic KV Cache](https://img.shields.io/badge/Dynamic%20KV--Cache-0.00%20Bytes-success.svg)](#architectural-guarantees--poison-traps)
@@ -211,17 +212,24 @@ WRAI/
 
 ---
 
-## Citation & Technical Report
+## Research Paper & Official Citation
 
-If you utilize WRAI in your research or edge deployments, please cite:
+The WRAI architectural research synthesis and physical silicon microcontroller verification is officially published on **CERN Zenodo** under permanent open-access DOI:
+
+> **WRAI: From Selective Routing to Fixed-State Memory for Autoregressive Language Models (Microcontroller Proof-of-Execution on ESP32)**  
+> *Author:* MusounoEnma (WRAI Research Team)  
+> *Permanent DOI:* [`10.5281/zenodo.23920132`](https://doi.org/10.5281/zenodo.23920132)  
+> *Publication Record:* [zenodo.org/records/23920132](https://zenodo.org/records/23920132)
 
 ```bibtex
-@article{wrai2026surgical,
-  title={WRAI: Surgical $O(1)$ Memory Retrofit for Edge LLMs via Tri-Memory Recurrent Transmutation},
-  author={WRAI Research Team},
-  journal={TechRxiv / Zenodo Preprint},
-  year={2026},
-  doi={10.5281/zenodo.xxxxxxx}
+@misc{musounoenma_2026_wrai,
+  author       = {MusounoEnma},
+  title        = {{WRAI: From Selective Routing to Fixed-State Memory for Autoregressive Language Models (Microcontroller Proof-of-Execution on ESP32)}},
+  month        = nov,
+  year         = 2026,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.23920132},
+  url          = {https://doi.org/10.5281/zenodo.23920132}
 }
 ```
 

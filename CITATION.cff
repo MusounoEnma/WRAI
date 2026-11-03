@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you utilize WRAI or BananaMind-2-Micro on-device microcontroller findings in your research, please cite it as below."
+authors:
+  - family-names: "MusounoEnma"
+    affiliation: "Independent Edge AI Researcher"
+title: "WRAI: From Selective Routing to Fixed-State Memory for Autoregressive Language Models (Microcontroller Proof-of-Execution on ESP32)"
+version: 1.0.0
+date-released: 2026-11-03
+doi: "10.5281/zenodo.23920132"
+url: "https://github.com/MusounoEnma/WRAI"
+license: "Apache-2.0"
+keywords:
+  - "embedded-ai"
+  - "language-models"
+  - "esp32"
+  - "zero-kv-cache"
+  - "sub-quadratic-attention"
+  - "microcontroller"
+  - "constant-memory"

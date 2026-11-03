@@ -1,6 +1,7 @@
 # BananaMind-2-Micro (2.93M) — WRAI Bare-Metal ESP32 Release Candidate
 ### Complete On-Device $O(1)$ Constant-Memory Language Model Deployment for ESP32
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23920132.svg)](https://doi.org/10.5281/zenodo.23920132)
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32%20%7C%20ESP32--S3-red.svg)](#hardware-specification)
 [![Memory](https://img.shields.io/badge/Flash-4MB%20SPI%20Flash-blue.svg)](#flash-budget--partition-table)
 [![Dynamic KV Cache](https://img.shields.io/badge/Dynamic%20KV--Cache-0.00%20Bytes-success.svg)](#audit-results--verification-gates)
@@ -183,11 +184,14 @@ The firmware includes built-in, fail-safe support for an optional **0.96-inch mo
 ## 7. Citation & License
 
 ```bibtex
-@software{wrai_bananamind_esp32_2026,
-  author = {WRAI Research Team},
-  title = {WRAI: 0.00-Byte Dynamic KV-Cache On-Device Deployment for BananaMind-2-Micro on ESP32},
-  year = {2026},
-  url = {https://github.com/MusounoEnma/WRAI}
+@misc{musounoenma_2026_wrai,
+  author       = {MusounoEnma},
+  title        = {{WRAI: From Selective Routing to Fixed-State Memory for Autoregressive Language Models (Microcontroller Proof-of-Execution on ESP32)}},
+  month        = nov,
+  year         = 2026,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.23920132},
+  url          = {https://doi.org/10.5281/zenodo.23920132}
 }
 ```
 

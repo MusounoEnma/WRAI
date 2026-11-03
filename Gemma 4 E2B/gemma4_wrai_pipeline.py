@@ -708,32 +708,60 @@ def distill_universal_wrai_parameters(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Convert Google Gemma 4 E2B to Standalone Zero-KV WRAI-U")
-    parser.add_argument("--model-id", type=str, default=DEFAULT_MODEL_ID, help="Hugging Face model ID")
+    parser.add_argument("--model-id", type=str, default=DEFAULT_MODEL_ID, help="Hugging Face model ID or local directory")
     parser.add_argument("--revision", type=str, default=DEFAULT_REVISION, help="Pinned model commit revision")
     parser.add_argument("--output-dir", type=str, default="./wrai_gemma4_release", help="Directory for exported artifacts")
     parser.add_argument("--steps", type=int, default=45, help="Distillation steps per layer")
     parser.add_argument("--lr", type=float, default=6e-3, help="Distillation learning rate")
+    parser.add_argument("--device", type=str, default=None, help="Device to use ('cuda' or 'cpu', default: auto-detect)")
     args, _ = parser.parse_known_args()
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu"))
     dtype = torch.bfloat16 if device.type == "cuda" else torch.float32
 
+    is_local = os.path.isdir(args.model_id)
+    active_rev = None if is_local else args.revision
+
     print("=" * 110)
-    print(f"WRAI x GEMMA 4 E2B — FULL CONVERSION PIPELINE")
-    print(f"Model: {args.model_id} (rev={args.revision}) | Device: {device} | Dtype: {dtype}")
+    print(f"WRAI x GEMMA 4 E2B — FULL MASTER CONVERSION PIPELINE")
+    print(f"Base Model : {args.model_id} (revision: {active_rev or 'N/A (Local / Unpinned)'})")
+    print(f"Device     : {device} | Dtype: {dtype} | Steps/Layer: {args.steps}")
     print("=" * 110)
 
-    config = AutoConfig.from_pretrained(args.model_id, revision=args.revision)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_id, revision=args.revision)
-    load_kwargs = {"low_cpu_mem_usage": True, "revision": args.revision}
+    try:
+        config = AutoConfig.from_pretrained(args.model_id, revision=active_rev)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_id, revision=active_rev)
+    except Exception as e:
+        print(f"\n[FATAL ERROR] Failed to load config/tokenizer for `{args.model_id}`: {e}")
+        print("\nPlease ensure you have an active network connection or provide a valid local directory path.")
+        sys.exit(1)
+
+    load_kwargs = {"low_cpu_mem_usage": True}
+    if active_rev is not None:
+        load_kwargs["revision"] = active_rev
     if "dtype" in inspect.signature(AutoModelForCausalLM.from_pretrained).parameters:
         load_kwargs["dtype"] = dtype
     else:
         load_kwargs["torch_dtype"] = dtype
 
-    model = AutoModelForCausalLM.from_pretrained(args.model_id, **load_kwargs).to(device).eval()
+    try:
+        model = AutoModelForCausalLM.from_pretrained(args.model_id, **load_kwargs).to(device).eval()
+    except Exception as e:
+        print("\n" + "=" * 90)
+        print(f"[FATAL ERROR] Failed to load base model weights for `{args.model_id}`: {e}")
+        print("=" * 90)
+        print("[PREREQUISITE & WORKFLOW GUIDE]")
+        print("  Gemma 4 E2B is a 2B parameter multimodal foundation model (~9.5 GB BF16 weights).")
+        print("  The WRAI repository does not bundle raw 9.5 GB foundation weights.")
+        print("  To run the master distillation pipeline:")
+        print("  1. Online: Ensure you have sufficient disk space (~10 GB) and network connectivity.")
+        print("  2. Offline: Pre-download `google/gemma-4-E2B` beforehand and pass its local directory:")
+        print("     python gemma4_wrai_pipeline.py --model-id /path/to/downloaded/gemma-4-E2B")
+        print("  3. Hardware requirement: ~12 GB+ VRAM recommended for calibration (CUDA).")
+        print("=" * 90 + "\n")
+        sys.exit(1)
     model.requires_grad_(False)
     _, text_layers, resolved_path = resolve_gemma4_text_decoder(model, config)
     print(f"[ARCH] Resolved {len(text_layers)} text decoder layers at `{resolved_path}`")

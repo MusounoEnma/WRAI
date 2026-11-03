@@ -761,15 +761,30 @@ class WRAIGemma4Engine:
         self.dtype = torch.bfloat16 if self.device.type == "cuda" else torch.float32
         self.enable_poison_traps = bool(enable_poison_traps)
 
+        is_local = os.path.isdir(model_id)
+        active_rev = None if is_local else revision
+
         print(f"[WRAI-ENGINE] Loading `{model_id}` on {self.device} ({self.dtype})...")
         try:
-            self.config = AutoConfig.from_pretrained(model_id, revision=revision)
-            self.tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
-            used_rev = revision
+            self.config = AutoConfig.from_pretrained(model_id, revision=active_rev)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_id, revision=active_rev)
+            used_rev = active_rev
         except Exception:
-            self.config = AutoConfig.from_pretrained(model_id)
-            self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-            used_rev = None
+            try:
+                self.config = AutoConfig.from_pretrained(model_id)
+                self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+                used_rev = None
+            except Exception as e:
+                print("\n" + "=" * 90)
+                print(f"[FATAL ERROR] Failed to load config/tokenizer for `{model_id}`: {e}")
+                print("=" * 90)
+                print("[PREREQUISITE GUIDE]")
+                print("  Google Gemma 4 E2B requires base model backbone files (~9.5 GB).")
+                print("  1. Online: Check internet connection to download `google/gemma-4-E2B` from Hugging Face.")
+                print("  2. Offline: Specify a local directory path where Gemma 4 E2B is stored:")
+                print("     python wrai_gemma4_inference.py --model-id /path/to/local/gemma-4-E2B")
+                print("=" * 90 + "\n")
+                sys.exit(1)
 
         load_kwargs = {"low_cpu_mem_usage": True}
         if used_rev is not None:
@@ -779,16 +794,42 @@ class WRAIGemma4Engine:
         else:
             load_kwargs["torch_dtype"] = self.dtype
 
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs).to(self.device).eval()
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs).to(self.device).eval()
+        except Exception as e:
+            print("\n" + "=" * 90)
+            print(f"[FATAL ERROR] Failed to load base model weights for `{model_id}`: {e}")
+            print("=" * 90)
+            print("[PREREQUISITE & MODEL WORKFLOW GUIDE]")
+            print("  WRAI operates as a surgical zero-KV transmutation of Google's Gemma 4 E2B backbone.")
+            print("  Base foundation weights (~9.5 GB BF16 `model.safetensors`) must be present.")
+            print("\n  Steps to resolve:")
+            print("  1. ONLINE EXECUTION:")
+            print("     Ensure ~10 GB free disk space and active internet connection to download")
+            print("     `google/gemma-4-E2B` from Hugging Face.")
+            print("  2. OFFLINE / LOCAL EXECUTION:")
+            print("     If you already downloaded Gemma 4 E2B, pass the local directory path:")
+            print("     python wrai_gemma4_inference.py --model-id /path/to/local/gemma-4-E2B")
+            print("  3. MASTER CALIBRATION PIPELINE:")
+            print("     To calibrate WRAI parameters from scratch before running inference:")
+            print("     python gemma4_wrai_pipeline.py --model-id google/gemma-4-E2B --output-dir ./wrai_gemma4_release")
+            print("     Then run inference with: --checkpoint ./wrai_gemma4_release/wrai_gemma4_universal_checkpoint.pt")
+            print("=" * 90 + "\n")
+            sys.exit(1)
+
         self.model.requires_grad_(False)
         _, self.text_layers, self.resolved_path = resolve_gemma4_text_decoder(self.model, self.config)
 
         ckpt_layers = None
-        if checkpoint_path and Path(checkpoint_path).exists():
-            ckpt_data = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-            ckpt_layers = ckpt_data.get("layers", None)
-            print(f"[WRAI-ENGINE] Loaded external WRAI-U checkpoint from: {checkpoint_path}")
-        else:
+        if checkpoint_path:
+            p_ckpt = Path(checkpoint_path)
+            if p_ckpt.exists():
+                ckpt_data = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+                ckpt_layers = ckpt_data.get("layers", None)
+                print(f"[WRAI-ENGINE] Loaded external WRAI-U checkpoint from: {checkpoint_path}")
+            else:
+                print(f"[WRAI-ENGINE] WARNING: Checkpoint `{checkpoint_path}` not found! Falling back to built-in Stage 17 priors.")
+        if ckpt_layers is None:
             print(f"[WRAI-ENGINE] Using built-in Stage 17 Universal Distilled priors (665 calibrated params).")
 
         self.shared_kv_registry: Dict[str, Tuple[torch.Tensor, torch.Tensor]] = {}
@@ -935,9 +976,11 @@ class WRAIGemma4Engine:
 # ====================================================================================================
 def main() -> None:
     parser = argparse.ArgumentParser(description="WRAI x Gemma 4 E2B Standalone Zero-KV Inference Engine")
-    parser.add_argument("--model-id", type=str, default=DEFAULT_MODEL_ID, help="Hugging Face model ID")
+    parser.add_argument("--model-id", type=str, default=DEFAULT_MODEL_ID, help="Hugging Face model ID or local directory")
     parser.add_argument("--revision", type=str, default=DEFAULT_REVISION, help="Model git revision")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to wrai_gemma4_universal_checkpoint.pt")
+    parser.add_argument("--device", type=str, default=None, help="Device to use ('cuda' or 'cpu', default: auto-detect)")
+    parser.add_argument("--export-checkpoint", type=str, default=None, help="Export built-in Stage 17 priors to a .pt checkpoint file and exit")
     parser.add_argument(
         "--prompt",
         type=str,
@@ -957,10 +1000,49 @@ def main() -> None:
     parser.add_argument("--interactive", action="store_true", help="Launch interactive CLI chat loop")
     args, _ = parser.parse_known_args()
 
+    if args.export_checkpoint:
+        out_file = Path(args.export_checkpoint)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        ckpt_layers = {}
+        for l_idx in range(EXPECTED_TEXT_LAYERS):
+            p_alpha, p_gamma, p_wavelet = STAGE17_DISTILLED_PRIORS[l_idx]
+            ckpt_layers[l_idx] = {
+                "log_alpha": torch.tensor(math.log(max(p_alpha, 1e-6)), dtype=torch.float32),
+                "gamma_logit": torch.tensor(-math.log(1.0 / min(p_gamma, 0.9999) - 1.0), dtype=torch.float32),
+                "wavelet_logit": torch.tensor(-math.log(1.0 / min(p_wavelet, 0.9999) - 1.0), dtype=torch.float32),
+                "head_gain_r48_log": torch.zeros(8, 1, dtype=torch.float32),
+                "head_gain_shh_log": torch.zeros(8, 1, dtype=torch.float32),
+                "effective_alpha": round(p_alpha, 6),
+                "effective_beta": round(p_alpha / math.sqrt(256), 6),
+                "effective_gamma": round(p_gamma, 6),
+                "effective_wavelet_weight": round(p_wavelet, 6),
+            }
+        payload = {
+            "architecture": "WRAI-U-Gemma4-E2B-ZeroKV",
+            "base_model_id": args.model_id,
+            "base_revision": args.revision,
+            "timestamp": "Stage 17 Calibrated Universal Priors",
+            "total_trainable_params": 665,
+            "hyperparameters": {
+                "rank": RANK,
+                "prefix_candidates": PREFIX_CANDIDATES,
+                "fine_slots": FINE_SLOTS,
+                "sink_slots": SINK_SLOTS,
+                "hdc_slots": HDC_SLOTS,
+                "full_attn_indices": FULL_ATTN_INDICES,
+            },
+            "layers": ckpt_layers,
+        }
+        torch.save(payload, out_file)
+        print(f"[WRAI-ENGINE] Successfully exported Stage 17 checkpoint to `{out_file}`")
+        print(f"  -> Total trainable parameters: 665 scalars across 35 layers")
+        return
+
     engine = WRAIGemma4Engine(
         model_id=args.model_id,
         revision=args.revision,
         checkpoint_path=args.checkpoint,
+        device=args.device,
         enable_poison_traps=True,
     )
 

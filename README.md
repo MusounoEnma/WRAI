@@ -147,13 +147,17 @@ python wrai_standalone_runner.py \
   --interactive
 ```
 
-#### B. WRAI Gemma 4 E2B (Zero-Shot Built-in Priors)
+#### B. WRAI Gemma 4 E2B (Zero-KV 35-Layer Engine)
 ```bash
 cd "Gemma 4 E2B"
 pip install -r requirements.txt
 
-# Run Zero-Shot Interactive Inference (Built-in Stage 17 Priors)
-python wrai_gemma4_inference.py --interactive
+# Option 1: Run Inference directly using bundled Stage 17 Checkpoint (~48 KB)
+# Note: Base model weights (~9.5 GB BF16) are automatically fetched from Hugging Face or loaded via --model-id
+python wrai_gemma4_inference.py --checkpoint wrai_gemma4_universal_checkpoint.pt --interactive
+
+# Option 2: Run Full Master Distillation Pipeline from scratch (Calibrate 665 WRAI scalars)
+python gemma4_wrai_pipeline.py --model-id google/gemma-4-E2B --output-dir ./wrai_gemma4_release --steps 45
 ```
 
 #### C. BananaMind 2 Micro (Bare-Metal ESP32 Microcontroller)
@@ -190,6 +194,7 @@ WRAI/
 ├── Gemma 4 E2B/                   # Google Gemma 4 E2B Implementation
 │   ├── gemma4_wrai_pipeline.py    # Distillation and calibration pipeline
 │   ├── wrai_gemma4_inference.py   # Zero-KV standalone inference engine
+│   ├── wrai_gemma4_universal_checkpoint.pt # Bundled Stage 17 calibrated checkpoint (48 KB)
 │   ├── requirements.txt           # Gemma-specific dependencies
 │   ├── LICENSE                    # Apache 2.0 License
 │   ├── .gitignore                 # Exclusion rules

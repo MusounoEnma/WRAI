@@ -1,5 +1,6 @@
 # Standalone model weights & binaries (Host on Hugging Face Hub / GitHub Releases)
 *.pt
+!wrai_gemma4_universal_checkpoint.pt
 *.bin
 *.safetensors
 standalone_models/

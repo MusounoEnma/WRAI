@@ -15,7 +15,7 @@ Fixes integrated in this final reproduction script:
   6. Cross-platform resource usage tracking (Linux `resource` with fallback to `psutil` on Windows).
 """
 from __future__ import annotations
-import ast, ctypes, csv, difflib, gc, hashlib, heapq, http.client, inspect, json, math, os, re, shutil, subprocess, sys, time, urllib.request
+import argparse, ast, ctypes, csv, difflib, gc, hashlib, heapq, http.client, inspect, json, math, os, re, shutil, subprocess, sys, time, urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -37,32 +37,20 @@ except ImportError:
         def get_cpu_rss_mib() -> float:
             return 0.0
 
-try:
-    from google.colab import drive
-    if not Path("/content/drive/MyDrive").exists():
-        drive.mount("/content/drive")
-    DRIVE_BASE = Path("/content/drive/MyDrive/WRAI_Research/POC-WRAI-SURGICAL-8K")
-except ImportError:
-    DRIVE_BASE = Path("./WRAI_Research/POC-WRAI-SURGICAL-8K")
-
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, DynamicCache
 
 # ====================================================================================================
 # 0. ISOLATED CLEAN RUN DIRECTORY & GLOBAL CONFIGURATION
 # ====================================================================================================
+BASE_DIR = Path(__file__).resolve().parent
 STAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-DEFAULT_ROOT = DRIVE_BASE / "master_pipeline_verification_runs" / f"clean_repro_final_{STAMP}"
+DEFAULT_ROOT = BASE_DIR / "runs" / f"master_verification_{STAMP}"
 STANDALONE_PT_DIR = DEFAULT_ROOT / "standalone_pt_models"
 TOK_CFG_DIR = STANDALONE_PT_DIR / "tokenizer_and_config"
 CPP_BUILD_DIR = DEFAULT_ROOT / "cpp_avx1_build"
 
-DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
-STANDALONE_PT_DIR.mkdir(parents=True, exist_ok=True)
-TOK_CFG_DIR.mkdir(parents=True, exist_ok=True)
-CPP_BUILD_DIR.mkdir(parents=True, exist_ok=True)
-
-RELEASE_CKPT_DIR = DRIVE_BASE / "release_v1_4r_universal_candidate"
-FALLBACK_CKPT_DIR = DRIVE_BASE / "universal_checkpoints_v1_1u_final"
+RELEASE_CKPT_DIR = BASE_DIR / "checkpoints" / "release_v1_4r_universal_candidate"
+FALLBACK_CKPT_DIR = BASE_DIR / "checkpoints" / "universal_checkpoints_v1_1u_final"
 
 LOG_PATH = DEFAULT_ROOT / "master_verification_final.log"
 STEP1_BASELINE_CSV = DEFAULT_ROOT / "step1_qwen_vs_wrai_nonrepeat_ppl_and_speed.csv"
@@ -155,8 +143,12 @@ VARIANT_SPECS = {
 
 def log(msg: str) -> None:
     print(msg, flush=True)
-    with open(LOG_PATH, "a", encoding="utf-8") as fp:
-        fp.write(msg + "\n")
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PATH, "a", encoding="utf-8") as fp:
+            fp.write(msg + "\n")
+    except Exception:
+        pass
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -1541,6 +1533,42 @@ def audit_historical_state_boundedness(
 # 4. MASTER EXECUTION FLOW (STEPS 1 THROUGH 5 + PRE-GEMMA VERIFICATION GATES)
 # ====================================================================================================
 def main() -> None:
+    global DEFAULT_ROOT, STANDALONE_PT_DIR, TOK_CFG_DIR, CPP_BUILD_DIR, RELEASE_CKPT_DIR, FALLBACK_CKPT_DIR
+    global LOG_PATH, STEP1_BASELINE_CSV, PASSKEY_MULTI_SEED_CSV, STEP3_INTEGRITY_CSV, STEP3_STATE_BOUNDS_CSV
+    global STEP4_BACKEND_PARITY_CSV, GENERATION_PARITY_CSV, GATES_SUMMARY_JSON, DEVICE, DTYPE
+
+    parser = argparse.ArgumentParser(description="WRAI Master Pipeline Verification & Reproduction")
+    parser.add_argument("--output-dir", type=str, default=None, help="Root directory for output runs (default: ./runs/master_verification_<STAMP>)")
+    parser.add_argument("--checkpoint-dir", type=str, default=None, help="Directory containing WRAI trained checkpoints")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)")
+    args = parser.parse_args()
+
+    if args.output_dir:
+        DEFAULT_ROOT = Path(args.output_dir)
+        STANDALONE_PT_DIR = DEFAULT_ROOT / "standalone_pt_models"
+        TOK_CFG_DIR = STANDALONE_PT_DIR / "tokenizer_and_config"
+        CPP_BUILD_DIR = DEFAULT_ROOT / "cpp_avx1_build"
+        LOG_PATH = DEFAULT_ROOT / "master_verification_final.log"
+        STEP1_BASELINE_CSV = DEFAULT_ROOT / "step1_qwen_vs_wrai_nonrepeat_ppl_and_speed.csv"
+        PASSKEY_MULTI_SEED_CSV = DEFAULT_ROOT / "step1_4_5_passkey_multi_depth_seed.csv"
+        STEP3_INTEGRITY_CSV = DEFAULT_ROOT / "step3_28layer_transplant_integrity.csv"
+        STEP3_STATE_BOUNDS_CSV = DEFAULT_ROOT / "step3_historical_state_boundedness.csv"
+        STEP4_BACKEND_PARITY_CSV = DEFAULT_ROOT / "step4_decode_step_backend_logit_parity.csv"
+        GENERATION_PARITY_CSV = DEFAULT_ROOT / "step4_5_generation_quality_comparison.csv"
+        GATES_SUMMARY_JSON = DEFAULT_ROOT / "pre_gemma_verification_gates_summary.json"
+
+    if args.checkpoint_dir:
+        RELEASE_CKPT_DIR = Path(args.checkpoint_dir)
+        FALLBACK_CKPT_DIR = Path(args.checkpoint_dir)
+
+    DEVICE = torch.device(args.device)
+    DTYPE = torch.bfloat16 if DEVICE.type == "cuda" else torch.float32
+
+    DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
+    STANDALONE_PT_DIR.mkdir(parents=True, exist_ok=True)
+    TOK_CFG_DIR.mkdir(parents=True, exist_ok=True)
+    CPP_BUILD_DIR.mkdir(parents=True, exist_ok=True)
+
     log("=" * 128)
     log(f"WRAI FINAL MASTER PIPELINE VERIFICATION & CLEAN REPRODUCTION (`{SOURCE_MODEL}` -> `.PT`) AT {STAMP}")
     log(f"Isolated Run Root: {DEFAULT_ROOT}")
@@ -1636,7 +1664,12 @@ def main() -> None:
                 if src_ckpt_path is not None:
                     break
             if src_ckpt_path is None:
-                raise RuntimeError(f"STRICT GATE FAILURE: Required checkpoint for `{var_name}` not found!")
+                raise RuntimeError(
+                    f"STRICT GATE FAILURE: Required checkpoint for `{var_name}` not found in "
+                    f"'{RELEASE_CKPT_DIR}' or '{FALLBACK_CKPT_DIR}'. "
+                    f"Candidates searched: {spec['ckpt_candidates']}. "
+                    f"Please provide the path via --checkpoint-dir or place checkpoints in ./checkpoints/."
+                )
             src_ckpt_sha256 = sha256_file(src_ckpt_path)
             patch_ckpt = torch.load(src_ckpt_path, map_location="cpu")
             for i in range(NUM_LAYERS):

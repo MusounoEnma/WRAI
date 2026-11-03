@@ -198,6 +198,7 @@ WRAI/
 └── WRAI Qwen 3 0.6B/              # Qwen 3 0.6B Implementation
     ├── wrai_end_to_end_master_pipeline.py # Full verification & reproduction pipeline
     ├── wrai_standalone_runner.py  # Pure Python + PyTorch JIT standalone runner
+    ├── tokenizer_and_config/      # Bundled offline tokenizer (11 MB) & config
     ├── requirements.txt           # Qwen-specific dependencies
     ├── LICENSE                    # Apache 2.0 License
     ├── .gitignore                 # Exclusion rules

@@ -64,6 +64,11 @@ As the context length increases, standard Qwen's decode speed degrades by **-47.
 ```text
 ├── wrai_end_to_end_master_pipeline.py # Full Scientific Verification & Master Reproduction Pipeline (5-Step Audit & 6 Gates)
 ├── wrai_standalone_runner.py          # Standalone runner (meta-device loader, 3 poison traps, interactive CLI, pure Python)
+├── tokenizer_and_config/              # Bundled offline tokenizer (11 MB) & config for 100% zero-internet execution
+│   ├── chat_template.jinja
+│   ├── config.json
+│   ├── tokenizer.json
+│   └── tokenizer_config.json
 ├── benchmarks/
 │   ├── bench_context_scaling.py       # Context scaling audit (27 to 1024 tokens)
 │   ├── bench_memory_wrai.py           # Real-time psutil continuous lifecycle memory monitor (WRAI)
@@ -88,25 +93,31 @@ cd "WRAI/WRAI Qwen 3 0.6B"
 pip install -r requirements.txt
 ```
 
-### 2. Full Master Reproduction & 5-Step Verification (Google Colab / Server)
+### 2. Run Standalone Inference (100% Pure Python, Offline, Zero Internet)
 
-To run the complete from-scratch extraction from `Qwen/Qwen3-0.6B`, surgical transplant, 16-token Cue-Span HDC verification, multi-seed passkey audit, and 6 Pre-Gemma verification gates:
+The standalone runner loads the surgical WRAI model via `meta` device instantiation, with zero dynamic KV cache and three active poison traps.
 
-```bash
-python wrai_end_to_end_master_pipeline.py
-```
+1. Download the pre-distilled standalone checkpoint (`~1.14 GB`):
+   - **Hugging Face**: [MusounoEnma/WRAI-Qwen3-0.6B](https://huggingface.co/MusounoEnma/WRAI-Qwen3-0.6B)
+   - **Zenodo DOI**: [10.5281/zenodo.23920132](https://doi.org/10.5281/zenodo.23920132)
+   Place `wrai_qwen3_0_6b_universal_homogeneous_standalone.pt` in this folder.
 
-### 3. Run Standalone Inference (100% Pure Python, Offline, Zero Internet)
-
-Once standalone weights (`standalone_models/*.pt`) are generated, run the standalone runner on CPU:
-
+2. Run interactive chat on CPU (or GPU):
 ```bash
 # Pure Python + PyTorch JIT (100% Cross-Platform: Windows, Linux, macOS, ARM64)
 python wrai_standalone_runner.py \
-  --model standalone_models/wrai_qwen3_0_6b_universal_homogeneous_standalone.pt \
+  --model wrai_qwen3_0_6b_universal_homogeneous_standalone.pt \
   --backend jit_float \
   --threads 4 \
   --interactive
+```
+
+### 3. Full Master Reproduction & 5-Step Verification (CLI / Server / Colab)
+
+To run the complete verification suite from raw `Qwen/Qwen3-0.6B`, surgical transplant, 16-token Cue-Span HDC verification, multi-seed passkey audit, and 6 Pre-Gemma verification gates:
+
+```bash
+python wrai_end_to_end_master_pipeline.py --output-dir ./runs/master_verification --device cuda
 ```
 
 ---
@@ -128,10 +139,10 @@ If you use or build upon WRAI in your research, please cite:
 ```bibtex
 @article{wrai2026surgical,
   title={WRAI: Surgical $O(1)$ Memory Retrofit for Edge LLMs via Tri-Memory Recurrent Transmutation},
-  author={WRAI Research Team},
-  journal={TechRxiv / Zenodo Preprint},
+  author={MusounoEnma},
+  journal={Zenodo Preprint},
   year={2026},
-  doi={10.5281/zenodo.xxxxxxx}
+  doi={10.5281/zenodo.23920132}
 }
 ```
 

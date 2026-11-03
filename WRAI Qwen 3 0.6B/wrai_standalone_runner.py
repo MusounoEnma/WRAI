@@ -11,7 +11,7 @@ Usage on ASUS X454YA (AMD A8):
   python3 wrai_standalone_runner.py --model standalone_models/wrai_qwen3_0_6b_homogeneous_standalone.pt --backend jit_float --threads 4 --interactive
 """
 from __future__ import annotations
-import argparse, ctypes, gc, math, os, subprocess, time
+import argparse, ctypes, gc, math, os, subprocess, sys, time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -690,8 +690,13 @@ def load_full_standalone_wrai_model(
     meta_cfg = pkg["wrai_architecture_meta"]
     eff_backend = backend_override if backend_override is not None else meta_cfg.get("default_backend", "jit_float")
 
-    tokenizer = AutoTokenizer.from_pretrained(str(tok_cfg_dir), local_files_only=True)
-    config = AutoConfig.from_pretrained(str(tok_cfg_dir), local_files_only=True)
+    tok_is_local = (
+        isinstance(tok_cfg_dir, Path) and tok_cfg_dir.is_dir()
+    ) or (
+        isinstance(tok_cfg_dir, str) and Path(tok_cfg_dir).is_dir()
+    )
+    tokenizer = AutoTokenizer.from_pretrained(str(tok_cfg_dir), local_files_only=tok_is_local)
+    config = AutoConfig.from_pretrained(str(tok_cfg_dir), local_files_only=tok_is_local)
 
     cpp_lib = None
     if eff_backend == "cpp_avx1":
@@ -766,7 +771,10 @@ def generate_standalone_answer(model, tokenizer, prompt: str, max_new_tokens: in
 
 def main_cli() -> None:
     parser = argparse.ArgumentParser(description="100% Offline Standalone WRAI Model Runner")
-    parser.add_argument("--model", type=str, default="standalone_models/wrai_qwen3_0_6b_universal_homogeneous_standalone.pt")
+    parser.add_argument("--model", type=str, default="wrai_qwen3_0_6b_universal_homogeneous_standalone.pt",
+                        help="Path to standalone .pt model checkpoint")
+    parser.add_argument("--tokenizer", type=str, default=None,
+                        help="Path to tokenizer_and_config directory (default: ./tokenizer_and_config)")
     parser.add_argument("--backend", type=str, default="jit_float", choices=["jit_float", "pytorch_int8", "cpp_avx1"])
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
@@ -778,15 +786,50 @@ def main_cli() -> None:
     dev = torch.device(args.device)
     dt = torch.bfloat16 if dev.type == "cuda" else torch.float32
     bundle_dir = Path(__file__).resolve().parent
-    pt_path = bundle_dir / args.model
-    tok_dir = bundle_dir / "standalone_models" / "tokenizer_and_config"
+
+    # Search for model path across common candidate locations
+    model_input = Path(args.model)
+    cand_paths = [
+        model_input,
+        bundle_dir / args.model,
+        bundle_dir / "standalone_models" / args.model,
+        bundle_dir.parent / "hf_models" / "WRAI-Qwen3-0.6B" / args.model,
+        bundle_dir.parent / "wrai_github_test" / "models" / args.model,
+    ]
+    pt_path = None
+    for cand in cand_paths:
+        if cand.is_file():
+            pt_path = cand.resolve()
+            break
+
+    if pt_path is None:
+        print("=" * 80)
+        print(f"[ERROR] Standalone model checkpoint not found: '{args.model}'")
+        print("\nPlease ensure you have downloaded the pre-distilled standalone .pt checkpoint.")
+        print("Available from:")
+        print("  - Hugging Face : https://huggingface.co/MusounoEnma/WRAI-Qwen3-0.6B")
+        print("  - Zenodo DOI   : https://doi.org/10.5281/zenodo.23920132")
+        print("\nOnce downloaded (~1.14 GB), run:")
+        print("  python wrai_standalone_runner.py --model wrai_qwen3_0_6b_universal_homogeneous_standalone.pt --interactive")
+        print("=" * 80)
+        sys.exit(1)
+
+    # Search for tokenizer directory
+    if args.tokenizer is not None and Path(args.tokenizer).exists():
+        tok_dir = Path(args.tokenizer).resolve()
+    elif (bundle_dir / "tokenizer_and_config").is_dir():
+        tok_dir = (bundle_dir / "tokenizer_and_config").resolve()
+    elif (bundle_dir / "standalone_models" / "tokenizer_and_config").is_dir():
+        tok_dir = (bundle_dir / "standalone_models" / "tokenizer_and_config").resolve()
+    else:
+        tok_dir = "Qwen/Qwen3-0.6B"
 
     print(f"[OFFLINE STANDALONE LOAD] Loading {pt_path.name} on {dev} ({dt})...")
     model, tokenizer, wrai_layers = load_full_standalone_wrai_model(pt_path, tok_dir, dev, dt, args.backend)
     if args.interactive:
         print("=== Mode Chat Interaktif Standalone WRAI (Ketik 'exit' untuk keluar) ===")
         while True:
-            q = input("\nIchi > ").strip()
+            q = input("\nUser > ").strip()
             if not q or q.lower() in ("exit", "quit"):
                 break
             p = f"<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{q}<|im_end|>\n<|im_start|>assistant\n"

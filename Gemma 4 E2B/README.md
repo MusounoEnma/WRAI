@@ -113,10 +113,10 @@ python gemma4_wrai_pipeline.py \
 ```bibtex
 @article{wrai2026surgical,
   title={WRAI: Surgical $O(1)$ Memory Retrofit for Edge LLMs via Tri-Memory Recurrent Transmutation},
-  author={WRAI Research Team},
-  journal={TechRxiv / Zenodo Preprint},
+  author={MusounoEnma},
+  journal={Zenodo Preprint},
   year={2026},
-  doi={10.5281/zenodo.xxxxxxx}
+  doi={10.5281/zenodo.23920132}
 }
 ```
 

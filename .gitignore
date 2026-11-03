@@ -1,59 +1,45 @@
-# =============================================================================
-# WRAI .gitignore
-# =============================================================================
-
-# Large Model Weights & Checkpoints (>100MB, Host on Hugging Face / Releases)
-*.bin
+# Standalone model weights & binaries (Host on Hugging Face Hub / GitHub Releases)
 *.pt
-*.pth
-*.ckpt
+*.bin
 *.safetensors
+standalone_models/
 
-# Allow vocabulary binary (small, ~1.5 MB)
-!*vocab.bin
+# Whitelist BananaMind 2 Micro embedded binaries (<3 MB, fits GitHub push)
+!BananaMind 2 Micro/model/*.bin
+!BananaMind 2 Micro/firmware/bin/*.bin
 
-# Large weights directories
-models/
-models x/
-produce/
-archive/
-models x
-wrai-x/
-wrai-x
-1.7b models/
-backups/
-produce/esp32/base_model/
-esp32/base_model/
-
-# Compiled Executables & Objects (build from source or download from Releases)
-*.exe
+# Compiled native libraries & shared objects
+*.so
+*.dll
+*.dylib
 *.o
 *.obj
-*.dll
-*.so
-*.dylib
+*.exe
 
-# Compiler Toolchains & Archives
-tools/w64devkit/
-tools/w64devkit.zip
-*.zip
-*.tar.gz
-
-# Python Artifacts
+# Python bytecode & cache
 __pycache__/
 *.py[cod]
 *$py.class
-.ipynb_checkpoints/
+.pytest_cache/
 
-# Logs & Temporary Scratch
-*.log
-scratch/
-scratch_*.py
-test_*.txt
-test_*.exe
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
 
-# IDE & OS
+# Benchmark output logs & CSVs
+*.csv
+logs/
+
+# Whitelist BananaMind 2 Micro audit validation CSVs
+!BananaMind 2 Micro/audit/*.csv
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
-Thumbs.db
-.DS_Store
+*.swp
+*.swo

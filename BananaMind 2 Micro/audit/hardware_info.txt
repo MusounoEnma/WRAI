@@ -1,0 +1,35 @@
+================================================================================
+HARDWARE SPECIFICATION AUDIT: ESP32 TARGET FOR BANANAMIND-2-MICRO WRAI
+================================================================================
+
+1. Microcontroller Target Architecture:
+   - SoC Variant: Espressif ESP32-S3 / ESP32 Standard
+   - CPU Core: Dual-core 32-bit Xtensa LX7 (or LX6)
+   - Clock Frequency: 240 MHz (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y)
+   - FPU: Hardware Single-Precision Floating Point Unit (IEEE 754)
+   - Vector Extension: Xtensa PIE (Pulse Instruction Extension) on ESP32-S3
+
+2. Memory Subsystem:
+   - Internal SRAM: 512 KB total
+   - Usable Free Heap at Boot: ~380 KB (Wi-Fi/BT disabled)
+   - External PSRAM: OPTIONAL (Not required! Runs fully in internal SRAM)
+   - Internal ROM: 384 KB
+
+3. SPI Flash & Memory Mapping:
+   - Total Flash Size: 4 MB (32 Mbit = 4,194,304 Bytes)
+   - SPI Mode: DIO / QIO @ 80 MHz
+   - Hardware MMAP: Supported via esp_partition_mmap()
+   - Virtual Address Window: Mapped via ESP32 Ext-Mem MMU Cache (32 KB cache line)
+   - Zero-Copy Flash Execution: Weights accessed on-demand without copying to SRAM
+
+4. Peripheral Drivers Used:
+   - UART: UART0 (Default console output, TX=GPIO1, RX=GPIO3, 115200 baud)
+   - Hardware Timer: High-resolution hardware 64-bit microsecond timer (esp_timer)
+   - Optional I2C Display: SSD1306 128x64 OLED (SDA=GPIO21, SCL=GPIO22, 400kHz fast mode)
+     * Auto-probed in <50ms with zero-overhead fallback if unattached.
+
+5. Power & Thermal Footprint:
+   - Operating Voltage: 3.3V DC (USB 5V to 3.3V LDO)
+   - Active Power Consumption: ~65-85 mA @ 240 MHz (Radios OFF)
+   - Total System Power: ~250-300 mW during continuous decode
+================================================================================

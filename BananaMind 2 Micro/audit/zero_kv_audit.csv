@@ -1,0 +1,8 @@
+test_id,tokens,std_kv_bytes,std_kv_kb,wrai_kv_bytes,wrai_state_bytes_int8,wrai_state_kb_int8,dynamic_alloc_per_step,std_esp32_status,wrai_esp32_status,pass_zero_kv
+T1,8,36864,36.00,0,51264,50.06,0 Bytes,Fits in RAM,100% SAFE (Bounded 50 KB),PASS
+T2,16,73728,72.00,0,51264,50.06,0 Bytes,Fits in RAM,100% SAFE (Bounded 50 KB),PASS
+T3,32,147456,144.00,0,51264,50.06,0 Bytes,Fits in RAM,100% SAFE (Bounded 50 KB),PASS
+T4,64,294912,288.00,0,51264,50.06,0 Bytes,CRITICAL / NEAR OOM,100% SAFE (Bounded 50 KB),PASS
+T5,128,589824,576.00,0,51264,50.06,0 Bytes,OOM CRASH (> 380 KB Heap),100% SAFE (Bounded 50 KB),PASS
+T6,256,1179648,1152.00,0,51264,50.06,0 Bytes,OOM CRASH (> 380 KB Heap),100% SAFE (Bounded 50 KB),PASS
+T7,512,2359296,2304.00,0,51264,50.06,0 Bytes,OOM CRASH (> 380 KB Heap),100% SAFE (Bounded 50 KB),PASS

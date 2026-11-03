@@ -1,0 +1,12 @@
+idf_component_register(
+    SRCS 
+        "main.c"
+        "wrai_bananamind_engine.c"
+        "ssd1306_oled.c"
+    INCLUDE_DIRS 
+        "."
+    REQUIRES 
+        esp_partition 
+        esp_timer 
+        driver
+)

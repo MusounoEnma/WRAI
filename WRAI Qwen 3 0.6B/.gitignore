@@ -1,0 +1,38 @@
+# Standalone model weights & binaries (Host on Hugging Face Hub / GitHub Releases)
+*.pt
+*.bin
+*.safetensors
+standalone_models/
+
+# Compiled native libraries & shared objects
+*.so
+*.dll
+*.dylib
+*.o
+*.obj
+*.exe
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Benchmark output logs & CSVs
+*.csv
+logs/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

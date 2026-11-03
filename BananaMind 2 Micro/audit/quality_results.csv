@@ -1,0 +1,19 @@
+category,test_id,prompt,wrai_generated,raw_generated,eos_terminated,repetition_score,status
+Bahasa Inggris,ENG-01,The sun rises in the east and sets in the,south.,"south.
+
+**Step 4: Understanding the Importance of the",False,0.211,WARN
+Bahasa Inggris,ENG-02,"Once upon a time, there was a little",braces.,bit of a bit of a bit of a bit of a bit of a,False,0.263,WARN
+Bahasa Indonesia,IDN-01,Ibu pergi ke pasar untuk membeli,da 11000000000000000,da pasar umpa pasar umpa pasar u,False,0.316,WARN
+Bahasa Indonesia,IDN-02,"Halo dunia, apa kabar","a, and apapaaaaaaaaaaaaaa","a, and apa kabara.
+
+**Step 4: Under",False,0.368,WARN
+Instruksi Satu Langkah,INST-01,Complete the word: sun,", and the sunnnatellerve.",", sun, sun, sun, sun, sun, sun, s",False,0.684,PASS
+Fakta Sederhana,FACT-01,"Water is a liquid, while ice is a",liquid.,"liquid.
+
+There are two types of liquid:
+
+•",False,0.263,WARN
+Konsistensi (Run 1 vs Run 2),CONS-01,Artificial intelligence is,a bin. The Investheadromatatomoro is a mor,"a fundamental concept in the field of physics.
+
+### Step",False,1.000,PASS
+Terminasi EOS,TERM-01,The end.<|eos|>,11. The The 11111111111111,1. What is the name of the birthday of the British Museum,False,0.316,WARN

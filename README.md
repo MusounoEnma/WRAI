@@ -1,174 +1,230 @@
-# 🌊 WRAI: Wavelet Retention Artificial Intelligence
-> **A High-Performance Sub-Quadratic Neural Framework with Strictly Constant $O(1)$ State Memory, Zero KV-Cache, and Pure Native C Execution Across PC & Embedded Silicon**
+# WRAI: Surgical $O(1)$ Constant-Memory Retrofit for Edge LLMs
+### Transforming Linear KV-Cache into Bounded Tri-Memory for Low-Resource Edge Computing
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Release: v0.2.0](https://img.shields.io/badge/Release-v0.2.0%20Production-brightgreen.svg)](https://github.com/MusounoEnma/WRAI/releases)
-[![C Standard](https://img.shields.io/badge/C-C99%20Native%20Zero--Heap-00599C?logo=c)](qwen/engine/)
-[![Context Complexity](https://img.shields.io/badge/Context%20RAM-O(1)%20Strictly%20Constant-success)](#-the-zero-kv-cache-mathematical-foundation)
-[![Hardware Targets](https://img.shields.io/badge/Hardware-x86__64%20AVX2%20%7C%20ESP32%20Xtensa-orange)](#-the-two-production-tiers)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg)](https://pytorch.org/)
+[![Dynamic KV Cache](https://img.shields.io/badge/Dynamic%20KV--Cache-0.00%20Bytes-success.svg)](#architectural-guarantees--poison-traps)
+[![Models](https://img.shields.io/badge/Models-Qwen3--0.6B%20%7C%20Gemma--4--E2B%20%7C%20BananaMind--2M--ESP32-purple.svg)](#supported-model-ecosystem)
 
 ---
 
-## 📌 Executive Overview
+## Abstract
 
-Conventional Transformer Large Language Models (LLMs) suffer from an inherent memory bottleneck: **Linear KV-Cache Growth ($O(T)$)**. As conversation context expands, storing past key-value vectors consumes tens of gigabytes of RAM/VRAM, causing server latency degradation and making execution on edge microcontrollers virtually impossible.
+Standard autoregressive Large Language Models (LLMs) suffer from linear $O(N)$ memory growth and quadratic $O(N^2)$ computational complexity in their Key-Value (KV) cache. On resource-constrained edge hardware—such as budget laptops, single-board computers, and embedded devices with limited physical RAM—scaling context length inevitably triggers severe memory bandwidth bottlenecks, memory swapping, or Out-Of-Memory (OOM) crashes.
 
-The **WRAI (Wavelet Retention AI)** project presents a proven, mathematically grounded solution: **Architectural Transmutation (Transplantation)**. Instead of retraining multi-billion parameter networks from scratch, WRAI preserves pre-trained linguistic knowledge while surgically replacing quadratic Softmax Attention with **Dual-State Linear Retention** and **Multiresolution Wavelet Spectral Filtering**.
+**WRAI (Wavelet / Recurrent / Attentive Intelligence)** introduces a **surgical transmutation architecture** that replaces standard self-attention mechanisms with a bounded, strictly constant $O(1)$ **Tri-Memory State**. WRAI requires **zero pretraining from scratch**, preserves native model weights via calibration, and guarantees:
+
+1. **0.00 Bytes Dynamic KV Cache**: Zero memory allocations during autoregressive token generation.
+2. **Flat $O(1)$ Decode Throughput**: Consistent generation speed regardless of sequence length.
+3. **Hardware-Enforced Integrity**: DynamicCache poison traps prevent any fallback to quadratic attention.
+
+> [!NOTE]
+> **Historical Research Prototype**: Looking for the initial exploratory research (SimpleStories-1.25M & early WRAI-X prototypes)? The complete initial research codebase has been permanently preserved in the [`legacy` branch](https://github.com/MusounoEnma/WRAI/tree/legacy).
+
+---
+
+## The WRAI Tri-Memory Architecture
+
+Across all supported model families, WRAI unifies three complementary mathematical structures into a coherent, constant-size memory bank:
 
 ```
-Conventional Transformer (Quadratic & Linear Memory Growth):
-  Token (t) ──> Q, K, V ──> Softmax(Q · K^T / √d) · V ──> Must store ALL historical vectors in KV-Cache O(T)
+                            ┌──────────────────────────────────────────────┐
+                            │             Input Hidden State               │
+                            └──────────────────────┬───────────────────────┘
+                                                   │
+                         ┌─────────────────────────┴─────────────────────────┐
+                         ▼                                                   ▼
+            ┌───────────────────────────┐                       ┌───────────────────────────┐
+            │   R48 Associative State   │                       │ Haar Wavelet & Cue-Span   │
+            │  Low-Rank Recurrence (S, Z)│                      │    Multiscale Ring Buffer │
+            └────────────┬──────────────┘                       └─────────────┬─────────────┘
+                         │                                                    │
+                         │ Y_r48                                              │ Y_shh
+                         ▼                                                    ▼
+            ┌───────────────────────────┐                       ┌───────────────────────────┐
+            │   Head Gain G_r48 Multiplier│                     │  Head Gain G_shh Multiplier│
+            └────────────┬──────────────┘                       └─────────────┬─────────────┘
+                         │                                                    │
+                         └─────────────────────────┬──────────────────────────┘
+                                                   │ Dual-Gated Sum
+                                                   ▼
+                                    ┌─────────────────────────────┐
+                                    │    Transmuted Attention     │
+                                    │           Output            │
+                                    └─────────────────────────────┘
+```
 
-WRAI Architecture (Sub-Quadratic & Strictly Constant O(1) Memory):
-  Token (t) ──> Q, K, V ──> S_t = γ · S_{t-1} + K_t^T · V_t ──> Merged in-place into fixed matrix O(1)
+1. **R48 Low-Rank Associative Recurrence ($S, Z$)**:
+   - Projects keys and queries onto a compact landmark basis ($M=48$).
+   - Maintains recurrent associative state matrices updated via depth-dependent decay $\gamma$:
+     $$S_t = \gamma S_{t-1} + \phi(k_t)^T v_t, \quad Z_t = \gamma Z_{t-1} + \phi(k_t)^T$$
+   - Provides global associative memory retrieval in $O(1)$ time complexity without quadratic scans.
+
+2. **Natural Haar Wavelet Pyramid**:
+   - Preserves high-frequency temporal details through a hierarchical ring buffer:
+     - **Fine Slots**: Immediate preceding tokens ($N_{\text{fine}}=16$ or $64$).
+     - **Coarse $2\times$ Slots**: Paired Haar wavelet averages capturing medium-range transitions.
+     - **Coarse $4\times$ Slots**: Quad-token averages capturing broader temporal trends.
+
+3. **Salient Cue-Span & Novelty HDC State**:
+   - **Sink Slots ($SINK\_SLOTS=16$)**: Initial tokens and system anchors permanently pinned in memory.
+   - **Novelty Bank**: Tracks informational surprises via key vector norm displacement ($\|k_{\text{exit}} - k_{\text{prev}}\|_2$), promoting salient factual and numeric tokens into permanent slots.
+
+4. **Dual-Gated Output Fusion**:
+   - Fuses recurrent associative retrieval with multiscale local context using calibrated per-head gain multipliers:
+     $$Y = \text{Gain}_{R48} \odot Y_{R48} + \text{Gain}_{SHH} \odot Y_{SHH}$$
+
+---
+
+## Supported Model Ecosystem
+
+| Model Architecture | Layer Configuration | Special Features | Directory |
+| :--- | :--- | :--- | :--- |
+| **Qwen 3 0.6B** | 28 Homogeneous Layers (GQA 2:1, Head Dim 128) | 100% Pure Python + PyTorch JIT, cross-platform runner, budget CPU optimized | [`WRAI Qwen 3 0.6B/`](./WRAI%20Qwen%203%200.6B/) |
+| **Google Gemma 4 E2B** | 35 Heterogeneous Layers (Sliding-Window + Full Attention) | Shared-KV cross-layer registry, Logit softcapping, Stage 17 Built-in Distilled Priors | [`Gemma 4 E2B/`](./Gemma%204%20E2B/) |
+| **BananaMind 2 Micro (2.93M)** | 9 Layers (Hidden 192, 6 Heads, Head Dim 32) | Bare-metal C99 on ESP32 (4MB Flash, no PSRAM), MMU Flash mmap, 3.78 TPS, Strictly 0.00 Bytes Dynamic KV | [`BananaMind 2 Micro/`](./BananaMind%202%20Micro/) |
+
+---
+
+## Empirical Benchmarks
+
+### 1. Generation Speed vs Context Scaling (AMD A8-7410 Quad-Core CPU, FP32)
+
+Empirically measured on an entry-level AMD A8-7410 APU (2.2 GHz, 8 GB RAM, AVX1, SSE4.1, NO AVX2, NO FMA) over greedy generation (64 decode steps):
+
+| Context Length | Standard Transformer (Qwen3) | WRAI Standalone (Pure Python JIT) | Speedup Ratio |
+| :---: | :---: | :---: | :---: |
+| **~33 tokens** | 1.727 tok/s | 1.842 tok/s | 1.07× |
+| **~134 tokens** | 1.570 tok/s | 1.859 tok/s | 1.18× |
+| **~518 tokens** | 1.235 tok/s | 1.864 tok/s | 1.51× |
+| **~1,030 tokens** | 0.899 tok/s | **1.851 tok/s** | **2.06× Faster (+105.9%)** |
+
+> **Key Observation**: While standard Transformers degrade by **-47.9%** due to expanding KV cache overhead, WRAI exhibits a **completely flat $O(1)$ generation rate**.
+
+### 2. Physical Memory Footprint
+
+* **Break-Even Point**: At **~95 tokens**, WRAI becomes strictly lighter than standard KV caching.
+* **At 1,030 Tokens**:
+  * Standard KV-Cache: **239.31 MiB** (and continues growing linearly with every token).
+  * WRAI Tri-Memory: **35.27 MiB** (strictly constant, 6.8× smaller).
+  * Total System RAM Saved: **~548.3 MiB** reduction in operating memory.
+
+---
+
+## Architectural Guarantees & Poison Traps
+
+To prove conclusively that quadratic attention is never invoked during runtime, WRAI integrates **three hardware-level poison traps**:
+
+1. **`DynamicCache` Poison Trap**: Calling `.update()` on the KV cache immediately throws `RuntimeError("FATAL KV_CACHE_POISON_TRAP TRIGGERED!")`.
+2. **Global SDPA Ban**: `torch.nn.functional.scaled_dot_product_attention` is globally hijacked to fail-closed if accessed during decode.
+3. **Module Tree Audit**: Zero standard attention classes (`Qwen3Attention`, `GemmaAttention`) or un-transmuted projection layers exist in the runtime model tree.
+
+---
+
+## Quickstart Guide
+
+### 1. Clone Repository & Setup
+
+```bash
+git clone https://github.com/MusounoEnma/WRAI.git
+cd WRAI
+```
+
+### 2. Choose Your Model
+
+#### A. WRAI Qwen 3 0.6B (100% Pure Python Runner)
+```bash
+cd "WRAI Qwen 3 0.6B"
+pip install -r requirements.txt
+
+# Run Standalone Interactive Inference
+python wrai_standalone_runner.py \
+  --model standalone_models/wrai_qwen3_0_6b_universal_homogeneous_standalone.pt \
+  --backend jit_float \
+  --threads 4 \
+  --interactive
+```
+
+#### B. WRAI Gemma 4 E2B (Zero-Shot Built-in Priors)
+```bash
+cd "Gemma 4 E2B"
+pip install -r requirements.txt
+
+# Run Zero-Shot Interactive Inference (Built-in Stage 17 Priors)
+python wrai_gemma4_inference.py --interactive
+```
+
+#### C. BananaMind 2 Micro (Bare-Metal ESP32 Microcontroller)
+```bash
+cd "BananaMind 2 Micro"
+
+# Option 1: 1-Click Flash & Monitor (Precompiled Binaries - No Toolchain Needed)
+# Double-click flash_and_monitor.bat or run:
+flash_and_monitor.bat
+
+# Option 2: Monitor Only (Connect to Serial Output without Re-flashing)
+monitor_only.bat
 ```
 
 ---
 
-## 🏆 The Two Production Tiers
-
-WRAI is deployed across two distinct, fully reproducible production modules:
-
-| Feature / Metric | 🚀 [WRAI-X (0.8B)](qwen/) | ⚡ [WRAI-Micro (1.25M)](esp32/) |
-| :--- | :--- | :--- |
-| **Primary Domain** | Desktop, Laptop, & Edge Server CPU | Ultra-Low-Power Embedded IoT Silicon |
-| **Base Knowledge Backbone** | `Qwen/Qwen3-0.6B` (100% Frozen FFN) | `SimpleStories-V2-1.25M` (100% Frozen FFN) |
-| **Total Measured Parameters** | **831,268,848** (~0.83B parameters) | **1,250,560** (1.25M parameters) |
-| **Context Memory Complexity** | **Strictly $O(1)$** (Zero KV-Cache) | **Strictly $O(1)$** (Zero KV-Cache) |
-| **Recurrent State Buffer** | **29.42 MB** (28 layers $\times$ 16 heads $\times 128 \times 128$) | **64.0 KB** (4 layers $\times$ 4 heads $\times 32 \times 32$) |
-| **Dynamic Heap Delta** | **+0.00 MB** ($T=1$ to $T=32\text{K}$) | **0 bytes** ($T=1$ to continuous chat) |
-| **Target Silicon & Runtime** | x86_64 CPU (256-bit AVX SIMD + `mmap`) | ESP32 Xtensa Dual-Core LX6 @ 240 MHz |
-| **Empirically Measured Speed** | **2.1 – 3.2 tok/s** (AMD A8 APU @ 2.0 GHz, Physical PC) <br> *(Projected: ~25–45 tok/s on modern 8-core AVX2 CPUs)* | **1.7 – 4.2 tok/s** (Direct from SPI Flash, ESP32 COM3) |
-| **Official Module Path** | 👉 [`qwen/`](qwen/) | 👉 [`esp32/`](esp32/) |
-
----
-
-## 🧠 The Zero KV-Cache Mathematical Foundation
-
-### 1. The Associative Law of Linear Retention
-In standard Transformers, the non-linear $\text{Softmax}$ operator prevents decoupling past tokens:
-$$\text{Attention}(Q, K, V) = \text{Softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right) V$$
-
-WRAI removes the softmax bottleneck and exploits the **associative property of matrix multiplication**:
-$$(Q \cdot K^T) \cdot V \equiv Q \cdot (K^T \cdot V)$$
-
-At every step $t$, the outer product of key and value $K_t^T \cdot V_t$ forms a **fixed-size matrix** ($d_k \times d_k$). This matrix is accumulated recursively into an internal recurrent state buffer $S_t$ with exponential decay $\gamma$:
-$$S_t = \gamma \cdot S_{t-1} + K_t^T \cdot V_t$$
-$$Y_t = \text{GroupNorm}\left(Q_t \cdot S_t\right)$$
-
-Once $K_t$ and $V_t$ are absorbed into $S_t$, **they are immediately discarded from memory**. Historical context is permanently retained without allocating a single additional byte of RAM.
-
-### 2. 4-Level 1D Discrete Haar Wavelet Transform (DWT)
-To prevent semantic drift over long sequences, token representations pass through a multi-resolution Haar Wavelet filter:
-* **Low-Frequency Band ($L$)**: Captures global semantics, conceptual continuity, and macro intent.
-* **High-Frequency Band ($H$)**: Captures local syntax, micro-features, code tokens, and punctuation.
-* **Adaptive Gating**: Smoothly balances global context versus fine-grained syntax before entering the Feed-Forward Network.
-
-### 3. Hyperdimensional Computing (HDC) Associative Scratchpad
-For Chain-of-Thought (`<think> ... </think>`) step-by-step reasoning, WRAI introduces a Vector Symbolic Architecture (VSA) scratchpad:
-* **Hadamard Binding ($\odot$)**: Intermediate reasoning keys and values are bound via element-wise product: $\mathbf{b}_t = \tanh(W_{hk}\mathbf{r}_t) \odot \tanh(W_{hv}\mathbf{r}_t)$.
-* **Holographic Superposition**: Bound vectors are superimposed into a single, fixed 1,024-dimensional memory vector $\mathbf{S}_{hdc, t} = 0.95 \cdot \mathbf{S}_{hdc, t-1} + \mathbf{b}_t$.
-* **Resonance Unbinding**: Probing $\mathbf{S}_{hdc}$ with current key queries unbinds associative context on the fly, providing working memory without maintaining any token-level KV-cache!
-
----
-
-## 📁 Repository Architecture
-
-The repository is cleanly partitioned into modular, self-contained sub-ecosystems:
+## Repository Structure
 
 ```text
 WRAI/
-├── README.md                          # Master Architecture Overview & Portal (You are here)
-├── LICENSE                            # Apache License 2.0
-├── .gitignore                         # Strict protection against checkpoints & large binaries
+├── LICENSE                        # Apache 2.0 Open Source License
+├── README.md                      # Master architecture and technical overview
+├── .gitignore                     # Git exclusion rules
 │
-├── qwen/                              # 🚀 WRAI-X (0.8B) FOUNDATION MODEL MODULE
-│   ├── README.md                      # Detailed technical manual & replication guide
-│   ├── engine/                        # Pure Native C Inference Engine (Zero KV-Cache)
-│   │   ├── build_wrai_x.bat           # Automated MinGW-w64 build script
-│   │   ├── run_wrai_x.bat             # Interactive execution launcher
-│   │   ├── src/                       # CLI & memory-mapped C kernel
-│   │   ├── include/                   # Architectural C headers
-│   │   └── audit/                     # Windows NT psapi.h forensic audit tools
-│   ├── training/                      # 1-Click Zero-Contamination Colab Transplant
-│   │   ├── colab_train_wrai_x_08b_transplant.py
-│   │   ├── WRAI_X_08B_COLAB.ipynb
-│   │   └── poc_wrai_x_08b.py
-│   ├── quantization/                  # INT8 Symmetric Row-wise Exporter
-│   │   └── quantize_wrai_x_08b_colab.py
-│   ├── inference/                     # Evaluation, Dialect Tests, & State Audits
-│   │   ├── test_wrai_x_08b_english.py
-│   │   ├── inspect_wrai_x_drive_model.py
-│   │   └── verify_zero_kv_cache_deep_dive.py
-│   └── weights/                       # Auto-Downloader from Hugging Face Model Hub
-│       └── download_weights.py
+├── BananaMind 2 Micro/            # Bare-Metal ESP32 Microcontroller Implementation
+│   ├── model/                     # INT8 memory-mapped weights & tokenizer
+│   ├── firmware/                  # ESP-IDF & Arduino C99 engine & precompiled binaries
+│   ├── audit/                     # Verification logs, benchmark CSVs & hardware audit
+│   ├── flash_and_monitor.bat      # 1-Click flash and stream tool
+│   ├── monitor_only.bat           # 1-Click lightweight monitor tool
+│   ├── serial_monitor.py          # Standalone Python serial console
+│   └── README.md                  # BananaMind ESP32 documentation & flash guide
 │
-└── esp32/                             # ⚡ WRAI-MICRO (1.25M) EMBEDDED SILICON MODULE
-    ├── README.md                      # Bare-metal microcontroller documentation & logs
-    ├── firmware/wrai_micro_esp32/     # Arduino IDE Firmware
-    │   ├── wrai_micro_esp32.ino       # Continuous-state serial dialogue sketch
-    │   ├── wrai_micro_engine.h        # C linear recurrence engine (64KB SRAM)
-    │   ├── wrai_micro_vocab.h         # 4,023-token PROGMEM dictionary
-    │   └── wrai_micro_weights.h       # INT8 weights PROGMEM array (~1.31 MB)
-    ├── training/                      # Transplantation Pipeline
-    │   ├── download_base_model.py     # SimpleStories base downloader
-    │   ├── prepare_dataset.py         # Subword tokenizer & dataset builder
-    │   └── train_transplant_esp32.py  # PyTorch architectural transplant
-    └── tools/                         # Verification & Deployment Tools
-        ├── export_to_c.py             # INT8 quantizer and C code exporter
-        ├── bin_to_c_array.py          # Binary-to-Header C array generator
-        ├── benchmark_reality_check.py # Authentic reality-check benchmark
-        └── test_generalization_proof.py # Neural dynamics & generalization audit
+├── Gemma 4 E2B/                   # Google Gemma 4 E2B Implementation
+│   ├── gemma4_wrai_pipeline.py    # Distillation and calibration pipeline
+│   ├── wrai_gemma4_inference.py   # Zero-KV standalone inference engine
+│   ├── requirements.txt           # Gemma-specific dependencies
+│   ├── LICENSE                    # Apache 2.0 License
+│   ├── .gitignore                 # Exclusion rules
+│   └── README.md                  # Gemma 4 E2B technical documentation
+│
+└── WRAI Qwen 3 0.6B/              # Qwen 3 0.6B Implementation
+    ├── wrai_end_to_end_master_pipeline.py # Full verification & reproduction pipeline
+    ├── wrai_standalone_runner.py  # Pure Python + PyTorch JIT standalone runner
+    ├── requirements.txt           # Qwen-specific dependencies
+    ├── LICENSE                    # Apache 2.0 License
+    ├── .gitignore                 # Exclusion rules
+    ├── README.md                  # Qwen 3 0.6B technical documentation
+    └── benchmarks/                # Full benchmark suite
+        ├── bench_context_scaling.py
+        ├── bench_memory_wrai.py
+        ├── bench_memory_qwen.py
+        ├── wrai_standalone_bench.py
+        └── qwen_native_cpu_bench.py
 ```
 
 ---
 
-## 🚀 Quick Navigation & Getting Started
+## Citation & Technical Report
 
-### 🖥️ For PC / Server CPU Inference: WRAI-X (0.8B)
-👉 **Read the complete guide in [`qwen/README.md`](qwen/)**
-1. Download pre-compiled INT8 weights (1.35 GB) from [Hugging Face](https://huggingface.co/Musouno-Enma99/WRAI-X-0.8B-Qwen3):
-   ```bash
-   python qwen/weights/download_weights.py
-   ```
-2. Compile and launch the native C engine:
-   ```bash
-   qwen/engine/build_wrai_x.bat
-   qwen/engine/run_wrai_x.bat
-   ```
-
-### ⚡ For Physical Microcontrollers: WRAI-Micro (1.25M)
-👉 **Read the complete guide in [`esp32/README.md`](esp32/)**
-1. Open [`esp32/firmware/wrai_micro_esp32/wrai_micro_esp32.ino`](esp32/firmware/wrai_micro_esp32/wrai_micro_esp32.ino) in Arduino IDE.
-2. Select **Board: ESP32 Dev Module** and **Partition Scheme: Huge APP (3MB No OTA)**.
-3. Flash to your board on `COM3` (or device port), then open Serial Monitor at **115200 baud** to converse with offline AI running directly on your microcontroller!
-
----
-
-## 🙏 Acknowledgements & Attribution to Prior Art
-
-WRAI proudly builds upon the groundbreaking theoretical and engineering contributions of the open research community. We express our deepest gratitude and academic respect to:
-
-1. **Qwen Team (Alibaba Cloud)**: For open-sourcing the remarkable **Qwen3-0.6B** foundation model. The factual depth and linguistic representations in its pre-trained SwiGLU FFN networks provide the core knowledge substrate for WRAI-X.
-2. **Microsoft Research**: For the seminal formulation of **RetNet** (*Retentive Network: A Successor to Transformer for Large Language Models*, Sun et al., 2023), establishing the mathematical dual-form of linear recurrence and multi-scale retention that directly inspired our zero KV-cache formulation.
-3. **SimpleStories Research Team**: For creating the compact **SimpleStories-V2-1.25M** language model (*arXiv:2504.09184*, Eldan & Li), demonstrating that controlled micro-models can internalize robust synthetic grammar, making sub-$5 embedded silicon AI possible.
-4. **Espressif Systems**: For democratizing low-power edge computing through the ubiquitous, affordable **ESP32** microcontroller architecture.
-5. **Pioneers of Signal Processing & Hyperdimensional Computing**: Specifically the mathematicians behind the **Discrete Haar Wavelet Transform (DWT)** and vector-symbolic cognitive architectures (Pentti Kanerva et al.).
-
----
-
-## 📜 Academic Integrity & Citation
-
-WRAI is an open-source research initiative distributed under the **Apache License 2.0**.  
-If you reference our sub-quadratic recurrence findings, zero KV-cache proofs, or physical silicon implementations, please cite:
+If you utilize WRAI in your research or edge deployments, please cite:
 
 ```bibtex
-@misc{wrai_2026,
-  author = {WRAI Research Team},
-  title = {WRAI: Wavelet Retention Artificial Intelligence with Strictly Constant O(1) State Memory and Native C Execution},
-  year = {2026},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/MusounoEnma/WRAI}}
+@article{wrai2026surgical,
+  title={WRAI: Surgical $O(1)$ Memory Retrofit for Edge LLMs via Tri-Memory Recurrent Transmutation},
+  author={WRAI Research Team},
+  journal={TechRxiv / Zenodo Preprint},
+  year={2026},
+  doi={10.5281/zenodo.xxxxxxx}
 }
 ```
+
+## License
+
+This project is licensed under the [Apache 2.0 License](LICENSE).

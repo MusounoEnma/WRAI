@@ -1,0 +1,55 @@
+{
+  "model_name": "BananaMind-2-Micro",
+  "base_model_id": "BananaMind/BananaMind-2-Micro",
+  "architecture": "Homogeneous Transformer with WRAI Tri-Memory Recurrent Transmutation",
+  "provenance": {
+    "original_pt_checkpoint": "wrai_bananamind_2m_standalone.pt",
+    "original_pt_sha256": "6b3f40944949dbbd865052c56941ff908933ef9c8529411db6ca17ce3385db36",
+    "total_parameters_raw": 3195445,
+    "unique_parameters_tied": 2933301
+  },
+  "dimensions": {
+    "num_layers": 9,
+    "hidden_size": 128,
+    "intermediate_size": 512,
+    "num_heads": 4,
+    "num_kv_heads": 2,
+    "head_dim": 32,
+    "vocab_size": 2048,
+    "sink_slots": 4,
+    "n_fine": 16,
+    "hdc_slots": 8,
+    "total_slots": 28
+  },
+  "deployment_binaries": {
+    "int4_mmap": {
+      "file": "bananamind_2m_int4_mmap.bin",
+      "size_bytes": 1682708,
+      "size_mib": 1.6048,
+      "sha256": "d6d0c6436c574e7c004af1179de50d95faca39225df695c84b24cb6e487b6b57",
+      "target_flash_size": "4MB (32Mbit) and above",
+      "recommended_partition_offset": "0x180000"
+    },
+    "int8_mmap": {
+      "file": "bananamind_2m_int8_mmap.bin",
+      "size_bytes": 3009812,
+      "size_mib": 2.8704,
+      "sha256": "715ba1e37c4cfb311fc63985d38ecd958fc32016bd81dffe195f76b925b594a1",
+      "target_flash_size": "8MB (64Mbit) or 16MB",
+      "recommended_partition_offset": "0x180000"
+    }
+  },
+  "tokenizer": {
+    "header_file": "tokenizer_vocab.h",
+    "vocab_size": 2048,
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+    "unk_token_id": 3,
+    "pad_token_id": 0
+  },
+  "verification": {
+    "zero_kv_cache_dynamic_alloc": "0.00 Bytes",
+    "internal_sram_usage": "146.25 KB (Bounded)",
+    "status": "RELEASE_CANDIDATE_FROZEN"
+  }
+}

@@ -1,0 +1,10 @@
+component,format,elements_per_layer,bytes_per_layer,total_elements_9_layers,total_bytes_9_layers,total_kb_9_layers,ram_location
+bank_k,INT8,896,896,8064,8064,7.88,Internal SRAM (BSS)
+bank_v,INT8,896,896,8064,8064,7.88,Internal SRAM (BSS)
+state_z,FP32,2048,8192,18432,73728,72.00,Internal SRAM (BSS)
+conv_buf,FP32,1152,4608,10368,41472,40.50,Internal SRAM (BSS)
+scratch_buffers,FP32,4608,18432,4608,18432,18.00,Internal SRAM (BSS shared)
+TOTAL_WRAI_WORKING_STATE_INT8,INT8/FP32,5696,14592,51264,149760,146.25,Internal SRAM (Bounded)
+TOTAL_WRAI_WORKING_STATE_FP32,FP32,5696,22784,51264,205056,200.25,Internal SRAM (Bounded)
+DYNAMIC_ALLOC_PER_DECODE_STEP,N/A,0,0,0,0,0.00,Zero Heap Allocation
+RAW_TRANSFORMER_KV_AT_128_TOKENS,FP32,N/A,N/A,147456,589824,576.00,Exceeds ESP32 SRAM (OOM Crash)

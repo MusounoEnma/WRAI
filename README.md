@@ -204,6 +204,7 @@ WRAI/
     ├── .gitignore                 # Exclusion rules
     ├── README.md                  # Qwen 3 0.6B technical documentation
     └── benchmarks/                # Full benchmark suite
+        ├── validate_zero_kv_psutil.py # Live step-by-step 0-byte dynamic KV-cache & psutil audit
         ├── bench_context_scaling.py
         ├── bench_memory_wrai.py
         ├── bench_memory_qwen.py

@@ -70,6 +70,7 @@ As the context length increases, standard Qwen's decode speed degrades by **-47.
 │   ├── tokenizer.json
 │   └── tokenizer_config.json
 ├── benchmarks/
+│   ├── validate_zero_kv_psutil.py     # Live step-by-step 0-byte dynamic KV-cache & psutil audit
 │   ├── bench_context_scaling.py       # Context scaling audit (27 to 1024 tokens)
 │   ├── bench_memory_wrai.py           # Real-time psutil continuous lifecycle memory monitor (WRAI)
 │   ├── bench_memory_qwen.py           # Real-time psutil continuous lifecycle memory monitor (Qwen)

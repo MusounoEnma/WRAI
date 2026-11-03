@@ -1,4 +1,10 @@
 # ⚡ WRAI-Micro (1.25M) on Physical Silicon Microcontroller
+> [!NOTE]
+> ### 📜 Historical Research Archive (PoC)
+> This directory contains the **initial exploratory prototype** using SimpleStories-V2-1.25M.  
+> For the **official, paper-verified bare-metal ESP32 deployment**, please see **[BananaMind 2 Micro (2.93M) on main](https://github.com/MusounoEnma/WRAI/tree/main/BananaMind%202%20Micro)** with MMU flash-mapping, INT8 precision, 3.78 TPS, and complete audit documentation.
+
+
 > **100% Offline Recurrent Neural Language Model with Pure Native C Engine, Zero KV-Cache, and Zero External PSRAM Requirements**
 
 [![Silicon Target](https://img.shields.io/badge/Hardware-ESP32%20Xtensa%20LX6%20@%20240MHz-red.svg)](https://www.espressif.com/en/products/socs/esp32)

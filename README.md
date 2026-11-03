@@ -1,12 +1,21 @@
-# 🌊 WRAI: Wavelet Retention Artificial Intelligence
-> **A High-Performance Sub-Quadratic Neural Framework with Strictly Constant $O(1)$ State Memory, Zero KV-Cache, and Pure Native C Execution Across PC & Embedded Silicon**
+# 🏛️ [LEGACY / EARLY RESEARCH PoC] WRAI: Wavelet Retention Artificial Intelligence
+> **Historical Archive of Initial Exploratory Research & Early Proof-of-Concept (PoC) Prototypes (v0.2.0-legacy)**
+
+> [!WARNING]
+> ## ⚠️ ARCHIVAL NOTICE: INITIAL PROOF-OF-CONCEPT (PoC) REPOSITORY
+> This legacy branch preserves the **initial exploratory research and early proof-of-concept prototypes** of the WRAI framework.
+> 
+> The code in this branch (`esp32/` with SimpleStories-1.25M, `qwen/` with early WRAI-X 0.8B, and `artemis wrai/`) represents early experimental investigations conducted to demonstrate the initial feasibility of sub-quadratic recurrent transmutation.
+> 
+> ### 🚀 Looking for the Official Production Release?
+> For the official, peer-reviewed production models, formal verification benchmarks, and validated hardware deployments, please switch to the **[`main` branch](https://github.com/MusounoEnma/WRAI/tree/main)**:
+> * **[BananaMind 2 Micro (2.93M)](https://github.com/MusounoEnma/WRAI/tree/main/BananaMind%202%20Micro)**: Bare-metal C99 on ESP32 silicon (4MB SPI Flash, 512KB SRAM, no PSRAM), MMU flash memory-mapped, 3.78 TPS, Strictly 0.00 Bytes dynamic KV cache.
+> * **[Google Gemma 4 E2B](https://github.com/MusounoEnma/WRAI/tree/main/Gemma%204%20E2B)**: Surgical Stage 17 distilled priors with heterogeneous cross-layer attention.
+> * **[WRAI Qwen 3 0.6B](https://github.com/MusounoEnma/WRAI/tree/main/WRAI%20Qwen%203%200.6B)**: 100% Pure Python + PyTorch JIT standalone edge runner.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Release: v0.2.0](https://img.shields.io/badge/Release-v0.2.0%20Production-brightgreen.svg)](https://github.com/MusounoEnma/WRAI/releases)
-[![C Standard](https://img.shields.io/badge/C-C99%20Native%20Zero--Heap-00599C?logo=c)](qwen/engine/)
-[![Context Complexity](https://img.shields.io/badge/Context%20RAM-O(1)%20Strictly%20Constant-success)](#-the-zero-kv-cache-mathematical-foundation)
-[![Hardware Targets](https://img.shields.io/badge/Hardware-x86__64%20AVX2%20%7C%20ESP32%20Xtensa-orange)](#-the-two-production-tiers)
-
+[![Status: Legacy PoC Archive](https://img.shields.io/badge/Status-Legacy%20PoC%20Archive-yellow.svg)](https://github.com/MusounoEnma/WRAI/tree/legacy)
+[![Production Release](https://img.shields.io/badge/Production%20Release-v1.0.0%20(main)-brightgreen.svg)](https://github.com/MusounoEnma/WRAI/tree/main)
 ---
 
 ## 📌 Executive Overview

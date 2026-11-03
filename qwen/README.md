@@ -1,4 +1,10 @@
 # 🚀 WRAI-X (0.8B-Class / ~0.83B): Wavelet-Retention Foundation Model
+> [!NOTE]
+> ### 📜 Historical Research Archive (PoC)
+> This directory contains the **initial exploratory WRAI-X (0.8B) research prototype**.  
+> For the **official, standalone production CPU runner**, please see **[WRAI Qwen 3 0.6B on main](https://github.com/MusounoEnma/WRAI/tree/main/WRAI%20Qwen%203%200.6B)**.
+
+
 > **Sub-Quadratic Recurrent Language Model Transplanted from Qwen3-0.6B with 831M Parameters, Zero KV-Cache, and Pure Native C Inference**
 
 [![Base Model](https://img.shields.io/badge/Base%20Backbone-Qwen3--0.6B%20(100%25%20Frozen%20FFN)-blue.svg)](https://huggingface.co/Qwen/Qwen3-0.6B)

@@ -1,4 +1,9 @@
 # 🏹 WRAI-Artemis: On-Device Vision Agent Engine for Google ARTEMIS
+> [!NOTE]
+> ### 📜 Historical Research Archive (PoC)
+> This directory contains **early exploratory research scripts** for vision-agent mobile adaptation experiments.
+
+
 
 > **Target Hardware**: MediaTek Dimensity 1100 (8 GB LPDDR4X RAM) / Android Edge SoC  
 > **Transmutation Backbone**: Google Gemma 3n (Multimodal On-Device)  
